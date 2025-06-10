@@ -1,6 +1,6 @@
 from setuptools import find_packages, setup
 
-package_name = 'VUI'
+package_name = 'vui'
 
 setup(
     name=package_name,
