@@ -20,7 +20,7 @@ class STTModule:
 
     def listen(self):
         """마이크로부터 음성을 입력받고 Whisper API로 텍스트 반환"""
-        print("🎤 5초간 음성을 입력해주세요...")
+        print("[{__name__}] 🎤 5초간 음성을 입력해주세요...")
         audio = sd.rec(int(self.duration * self.samplerate), samplerate=self.samplerate, channels=1, dtype='int16')
         sd.wait()
 
@@ -51,4 +51,4 @@ class STTModule:
 if __name__ == "__main__":
     stt = STTModule()
     result = stt.listen()
-    print("🎧 최종 STT 출력:", result)
+    print("[{__name__}] 🎧 최종 STT 출력:", result)

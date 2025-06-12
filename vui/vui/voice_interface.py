@@ -28,7 +28,7 @@ class VoiceInterface:
         self.tts = TTSModule()
 
     def run(self):
-        print("🎤 음성 명령을 기다리는 중입니다... (로키야)")
+        print("[{__name__}] 🎤 음성 명령을 기다리는 중입니다... (로키야)")
         
         # 1. STT - 음성 입력 → 텍스트 변환
         user_text = self.stt.listen()
@@ -41,8 +41,8 @@ class VoiceInterface:
             targets, task_steps = [], []
 
         # 3. 가상 전달 - (YOLO 및 Controller로 전달되는지 가정)
-        print(f"🛠️ YOLO 모듈로 보낼 도구들: {targets}")
-        print(f"📡 Controller 모듈로 보낼 목적지: {task_steps}")
+        print(f"[{__name__}] 🛠️ YOLO 모듈로 보낼 도구들: {targets}")
+        print(f"[{__name__}] 📡 Controller 모듈로 보낼 목적지: {task_steps}")
 
         # 4. 응답 텍스트 구성
         if targets and task_steps:
@@ -54,7 +54,7 @@ class VoiceInterface:
         else:
             response_text = "죄송합니다. 이해하지 못했어요."
 
-        print(f"🗣️ 최종 응답: {response_text}")
+        print(f"[{__name__}] 🗣️ 최종 응답: {response_text}")
 
         # 5. TTS - 음성 출력
         self.tts.speak(response_text)
