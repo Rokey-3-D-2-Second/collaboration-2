@@ -62,12 +62,19 @@ class ROS2_CONTROLLER_ERROR(Exception):
 
 # ======================================================== #
 # vui
-
 class VUI_ERROR(Exception):
+    """
     ERROR_MESSAGES = {
         400: "음성 인식 실패.",
         401: "명령어 해석 실패.",
-        402: "VUI 시스템 오류.",
+        402: "키워드 추출 실패.",
+    }
+    """
+
+    ERROR_MESSAGES = {
+        400: "음성 인식 실패.",
+        401: "키워드 추출 실패.",
+        402: "명령어 해석 실패.",
     }
 
     def __init__(self, code):
