@@ -7,12 +7,14 @@ import openai
 from dotenv import load_dotenv
 import os
 
+from util import exceptions
 
 class STTModule:
     def __init__(self, duration=5, samplerate=16000):
         # 환경변수 로드
         load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../resource/.env"))
         self.api_key = os.getenv("OPENAI_API_KEY")
+
         self.duration = duration
         self.samplerate = samplerate
 
@@ -23,14 +25,17 @@ class STTModule:
         sd.wait()
 
         print("📡 Whisper 서버로 전송 중...")
-        text = self._send_to_whisper(audio)
+        try:
+            text = self._send_to_whisper(audio)
+        except Exception:
+            raise exceptions.VUI_ERROR(400)
+        
         print(f"📝 변환 결과: {text}")
         return text
 
     def _send_to_whisper(self, audio):
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_wav:
             wav.write(temp_wav.name, self.samplerate, audio)
-
             with open(temp_wav.name, "rb") as f:
                 transcript = openai.Audio.transcribe(
                     model="whisper-1",
