@@ -50,62 +50,61 @@ class Controller:
         
     def handle_target_coord(self, request, response):
         pose = request.pose  # [x, y, z, a, b, c]
-        try:
-            self.last_pose = pose  # 좌표 저장
-            response.succeed = True
-        except Exception:
-            response.succeed = False
-            # self.node.get_logger().error(f"Failed to move to pose: {e}")
-            raise exceptions.ROS2_CONTROLLER_ERROR(300)
-        finally:
-            return response
+        self.last_pose = pose  # 좌표 저장
+        
+        response.succeed = True
+        return response
 
     def handle_task_steps(self, goal_handle):
         # steps: [move, force_on, force_off, close_grip, open_grip]
         steps = goal_handle.request.steps
-        feedback = TaskSteps.Feedback()
-        result = TaskSteps.Result()
         success = True
         message = "Task completed"
 
-        for idx, step in enumerate(steps):
-            feedback.current_step = idx
-            feedback.step_desc = f"Executing: {step}"
-            goal_handle.publish_feedback(feedback)
-            try:
+        try:
+            # Feedback
+            feedback = TaskSteps.Feedback()
+            for idx, step in enumerate(steps):
+                feedback.current_step = idx
+                feedback.step_desc = f"Executing: {step}"
+                goal_handle.publish_feedback(feedback)
+
                 if step == "move":
                     # 최근 저장된 좌표가 있으면 그 좌표로 이동, 없으면 홈으로 이동
                     if self.last_pose is not None:
-                        self.mover.move_to_pose(self.last_pose)
+                        self.mover.move_to_target(self.last_pose)
                         self.last_pose = None
                     else:
-                        self.mover.move_to_home()
-                elif step == "force_on":
+                        self.mover.move_to_tray()
+                elif step == "force":
                     self.forcer.force_on()
-                elif step == "force_off":
+                    self.forcer.check_touch()
                     self.forcer.force_off()
+                    self.mover.move_to_home()
                 elif step == "close_grip":
+                    if self.gripper.is_close():
+                        self.gripper.open_grip()
                     self.gripper.close_grip()
                 elif step == "open_grip":
+                    if self.gripper.is_open():
+                        self.gripper.close_grip()
                     self.gripper.open_grip()
                 else:
-                    raise ValueError(f"Unknown step: {step}")
-            except Exception as e:
-                success = False
-                message = f"Failed at step {idx+1} ({step}): {e}"
-                self.node.get_logger().error(message)
-                break
-
-        result.success = success
-        result.message = message
-        if success:
-            goal_handle.succeed()
-        else:
-            goal_handle.abort()
-        return result
-
-    def control_system(self):
-        pass
+                    raise exceptions.ROS2_CONTROLLER_ERROR(300)
+        except Exception as e:
+            success = False
+            message = f"Failed at step {idx+1} ({step} : {e})"
+            self.node.get_logger().error(message)
+        finally:
+            # Result
+            result = TaskSteps.Result()
+            result.success = success
+            result.message = message
+            if success:
+                goal_handle.succeed()
+            else:
+                goal_handle.abort()
+            return result
 
     def __del__(self):
         self.node.destroy_node()
@@ -213,7 +212,6 @@ def main():
         print("Spin Start")
         while True:
             rclpy.spin_once(node)
-            # controller.control_system()
     except KeyboardInterrupt:
         controller.forcer.force_off()
         node.get_logger().info("Shutting down ...")

@@ -44,8 +44,8 @@ class REALSENSE_CAMERA_ERROR(Exception):
 # ros2_controller
 class ROS2_CONTROLLER_ERROR(Exception):
     ERROR_MESSAGES = {
-        300: "ROS2 컨트롤러 초기화 실패.",
-        301: "명령 전송 실패.",
+        300: "Unkown Step",
+        301: "No detection on Gripper",
         302: "컨트롤러 응답 없음.",
     }
 

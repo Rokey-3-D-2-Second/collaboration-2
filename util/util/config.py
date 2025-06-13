@@ -1,7 +1,7 @@
 # ======================================================== #
 # cb_interfaces
 target = ["fork", "knife", "spoon"]
-task_steps = ["move", "force_on", "force_off", "close_grip", "open_grip"]
+task_steps = ["move", "force", "close_grip", "open_grip"]
 
 # ======================================================== #
 # image_processor
@@ -32,40 +32,76 @@ TOOLCHARGER_PORT = '502'
 # ======================================================== #
 # vui
 prompt_template = """
-    당신은 사용자의 문장에서 특정 도구와 목적지를 추출해야 합니다.
+    너는 의료 도구(영문명: fork, knife, spoon)를 분류하고 트레이에 세팅하하는 로봇의 언어 인터페이스를 설계하고 있다.
 
-    <목표>
-    - 문장에서 다음 리스트에 포함된 도구를 최대한 정확히 추출하세요.
-    - 문장에 등장하는 도구의 목적지(어디로 옮기라고 했는지)도 함께 추출하세요.
+    사용 가능한 값:
 
-    <도구 리스트>
-    - hammer, screwdriver, wrench, pos1, pos2, pos3
+    - tool: ["fork", "knife", "spoon"]
+    - destination: ["tray"]
+    - task_steps: ["move", "force_on", "force_off", "close_grip", "open_grip"]
 
-    <출력 형식>
-    - 다음 형식을 반드시 따르세요: [도구1 도구2 ... / pos1 pos2 ...]
-    - 도구와 위치는 각각 공백으로 구분
-    - 도구가 없으면 앞쪽은 공백 없이 비우고, 목적지가 없으면 '/' 뒤는 공백 없이 비웁니다.
-    - 도구와 목적지의 순서는 등장 순서를 따릅니다.
-    <특수 규칙>
-    - 명확한 도구 명칭이 없지만 문맥상 유추 가능한 경우(예: "못 박는 것" → hammer)는 리스트 내 항목으로 최대한 추론해 반환하세요.
-    - 다수의 도구와 목적지가 동시에 등장할 경우 각각에 대해 정확히 매칭하여 순서대로 출력하세요.
-    <예시>
-    - 입력: "hammer를 pos1에 가져다 놔"  
-    출력: hammer / pos1
+    지침:
 
-    - 입력: "왼쪽에 있는 해머와 wrench를 pos1에 넣어줘"  
-    출력: hammer wrench / pos1
+    - 사용자의 명령어를 받으면, 각 도구는 YOLO에 Service 형식으로, 목적지로 가기 위한 작업 단계는 Controller에 action 형식으로 보내야 한다.
+    - 각 단계는 task_step에 따른 action(동작)과 필요한 경우 target(대상, 예: "fork", "tray") 또는 destination(목적지, 예: "tray")을 포함해야 한다.
+    - move의 첫 번째는 항상 "target"(도구명), 두 번째는 항상 "destination"(목적지명)을 사용한다.
+    - 여러 도구가 명령에 포함되면, 각 도구별로 동일한 task_steps 시퀀스를 순차적으로 반복한다.
+    - 도구명이 허용된 목록[허용된 도구: fork, knife, spoon]에 없으면 다음과 같이 자연어 음성 출력:
+        - "사용 가능한 도구가 아닙니다.”
+    - **YOLO 결과가 입력에 포함된 경우, 해당 도구가 인식되지 않으면 반드시 자연어 안내만 출력한다:**
+        - "타겟을 인식할 수 없습니다. 도구를 확인 후 다시 시도하세요."
+    - 예외 상황(수량 부족 등)에는 자연어 메시지만 출력:
+        - 예: "도구 수량 부족으로 작업을 완료할 수 없습니다."
 
-    - 입력: "왼쪽에 있는 hammer를줘"  
-    출력: hammer /
+    예시 1:
+    입력:
+    포크, 스푼 트레이에 세팅해줘
 
-    - 입력: "왼쪽에 있는 못 박을 수 있는것을 줘"  
-    출력: hammer /
+    출력:
+    {
+        "task_steps": [
+            {"action": "move", "target": "fork"},
+            {"action": “force_on”, "close_grip", “force_off”},
+            {"action": "move", "destination": "tray"},
+            {"action": "open_grip"},
+            {"action": "move", "target": "spoon"},
+            {"action": “force_on”, "close_grip", “force_off”},
+            {"action": "move", "destination": "tray"},
+            {"action": "open_grip"}
+        ]
+    }
 
-    - 입력: "hammer는 pos2에 두고 screwdriver는 pos1에 둬"  
-    출력: hammer screwdriver / pos2 pos1
+    예시 2:
+    입력:
+    나이프 트레이에 세팅해줘
 
-    <사용자 입력>
-    "{user_input}"
+    출력:
+    {
+        "task_steps": [
+            {"action": "move", "target": "knife"},
+            {"action": “force_on”, "close_grip", “force_off”},
+            {"action": "move", "destination": "tray"},
+            {"action": "open_grip"}
+        ]
+    }
+
+    예시 3:
+    입력:
+    핀셋 트레이에 세팅해줘
+
+    출력:
+    사용 가능한 도구가 아닙니다.
+
+    예시 4:
+    입력:
+    포크 트레이에 세팅해줘 (YOLO 결과: fork 인식 불가)
+
+    출력:
+    타겟을 인식할 수 없습니다. 물체를 확인 후 다시 시도하세요.
+
+    입력:
+        {input}
+        YOLO 결과: {yolo_result}
+    출력:
 """
 user_input="user_input"
