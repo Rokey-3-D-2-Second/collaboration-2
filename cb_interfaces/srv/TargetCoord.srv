@@ -1,4 +1,4 @@
 # TargetCoord.srv
-float32[4] bbox            # [x_min, y_min, x_max, y_max]
+float32[6] pose            # [x, y, z, a, b, c]
 ---
-float32[3] coord           # [x, y, z] (월드/로봇 기준 좌표계)
+bool succeed

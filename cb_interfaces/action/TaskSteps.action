@@ -1,7 +1,7 @@
 # TaskSteps.action
 
 # Goal
-string[] steps             # [move, turn_on_force, turn_off_force, close_grip, open_grip]
+string[] steps             # [move, force_on, force_off, close_grip, open_grip]
 
 ---
 # Result
