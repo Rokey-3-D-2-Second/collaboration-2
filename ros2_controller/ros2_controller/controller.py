@@ -80,17 +80,22 @@ class Controller:
                     self.forcer.force_on()
                     self.forcer.check_touch()
                     self.forcer.force_off()
-                    self.mover.move_to_home()
+                    self.mover._up()
                 elif step == "close_grip":
                     if self.gripper.is_close():
                         self.gripper.open_grip()
                     self.gripper.close_grip()
+                    self.mover._up()
                 elif step == "open_grip":
                     if self.gripper.is_open():
                         self.gripper.close_grip()
                     self.gripper.open_grip()
+                    self.mover._down()
                 else:
                     raise exceptions.ROS2_CONTROLLER_ERROR(300)
+                
+            self.mover.move_to_home()
+            self.gripper.close_grip()
         except Exception as e:
             success = False
             message = f"Failed at step {idx+1} ({step} : {e})"
