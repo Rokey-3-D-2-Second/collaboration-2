@@ -1,0 +1,13 @@
+# TaskSteps.action
+
+# Goal
+string[] steps             # [move, turn_on_force, turn_off_force, close_grip, open_grip]
+
+---
+# Result
+bool success
+string message             # 예: "Task completed", "Failed at step 2"
+---
+# Feedback (Optional)
+int32 current_step
+string step_desc
