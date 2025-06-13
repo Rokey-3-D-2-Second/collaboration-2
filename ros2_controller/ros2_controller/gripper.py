@@ -1,4 +1,4 @@
-from onrobot import RG
+from .onrobot import RG
 
 from util import config
 

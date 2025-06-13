@@ -5,13 +5,14 @@ import time
 from util import config
 
 class Mover:
-    white_board_home = posx([0, 0, 0, 0, 0, 0])
-    pen_holder = posx([2.970, 574.210, -136.250, 90.0, 88.17, -91.58])
-    eraser_holder = posx([145.0, 615.0, -155.0, 90.0, 90.0, -90.0])
+    home = posx([372.49, 16.510, 170.42, 90.0, 180.0, 180.0])
+    target = posx()
+    tray = posx()
 
-    holder_mode = {
-        1: pen_holder,
-        2: eraser_holder
+    _mode = {
+        0: home,
+        1: target,
+        2: tray
     }
     
     def set_dependencies(
@@ -26,30 +27,30 @@ class Mover:
         self.get_current_posx = get_current_posx
 
     def move_to_home(self):
-        self.movel(self.white_board_home, config.VEL, config.ACC)
+        self.movel(self.home, config.VEL, config.ACC)
 
-    def move_to_start(self, traj):
-        self.movel(traj[0], config.VEL, config.ACC)
+    def move_to_pose(self, pose):
+        self.movel(pose, config.VEL, config.ACC)
 
-    def move_to_holder(self, mode):
-        self.movel(self.holder_mode[mode], config.VEL, config.ACC)
+    def move_to_mode(self, mode):
+        self.movel(self._mode[mode], config.VEL, config.ACC)
 
-    def move_to_above_holder(self, mode):
-        self.holder_mode[mode][1] -= 30
-        self.move_to_holder(mode)
+    def move_to_above_mode(self, mode):
+        self._mode[mode][1] -= 30
+        self.move_to_mode(mode)
 
-    def down_to_hold(self, mode):
-        self.holder_mode[mode][1] += 30
-        self.move_to_holder(mode)
+    def down_to_hold_mode(self, mode):
+        self._mode[mode][1] += 30
+        self.move_to_mode(mode)
 
-    def up_from_holder(self, mode):
-        self.holder_mode[mode][1] -= 20
-        self.move_to_holder(mode)
+    def up_from_mode(self, mode):
+        self._mode[mode][1] -= 20
+        self.move_to_mode(mode)
     
     def down_to_release(self, mode):
-        self.holder_mode[mode][1] += 18
-        self.move_to_holder(mode)
-        self.holder_mode[mode][1] += 2
+        self._mode[mode][1] += 18
+        self.move_to_mode(mode)
+        self._mode[mode][1] += 2
 
     def pen_down(self, callback):
         """로봇 펜을 보드(종이)로 누르는 동작을 수행합니다."""
