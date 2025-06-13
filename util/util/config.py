@@ -1,4 +1,9 @@
 # ======================================================== #
+# cb_interfaces
+target = ["fork", "knife", "spoon"]
+task_steps = ["move", "force_on", "force_off", "close_grip", "open_grip"]
+
+# ======================================================== #
 # image_processor
 
 # ======================================================== #
@@ -6,6 +11,23 @@
 
 # ======================================================== #
 # ros2_controller
+
+# controller
+ROBOT_ID = 'dsr01'
+ROBOT_MODEL = 'mo6o9'
+ROBOT_TCP = 'GripperDAmoon'
+ROBOT_TOOL = 'Tool moon'
+VEL = 100
+ACC = 100
+
+# mover
+
+# forcer
+
+# gripper
+GRTIPPER_NAME = 'rg2'
+TOOLCHARGER_IP = '192.168.1.1'
+TOOLCHARGER_PORT = '502'
 
 # ======================================================== #
 # vui
