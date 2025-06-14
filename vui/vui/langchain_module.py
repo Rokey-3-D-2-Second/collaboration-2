@@ -27,22 +27,22 @@ class LangChainModule:
         )
 
     def extract(self, user_input: str):
-        """텍스트 명령어에서 도구/목적지 추출"""
+        """텍스트 명령어에서 타겟별 task_step 시퀀스 추출"""
         response = self.chain.invoke({config.user_input: user_input})
         raw_result = response["text"]
-        print(f"[{__name__}] 🧠 LLM 응답: {raw_result}")
+        print(f"🧠 LLM 응답: {raw_result}")
 
-        # 결과 파싱
+        print(f"결과를 파싱합니다.")
         try:
-            targets_raw, task_steps_raw = raw_result.strip().split("/")
-            targets = targets_raw.strip().split()
-            task_steps = task_steps_raw.strip().split()
+            parts = [p.strip() for p in raw_result.strip().split("/")]
+            targets = parts[0].split() if parts[0] else []
+            steps_per_target = [p.strip().split() for p in parts[1:]] if len(parts) > 1 else []
         except Exception:
             raise exceptions.VUI_ERROR(401)
 
-        print(f"[{__name__}] 🔧 추출된 도구: {targets}")
-        print(f"[{__name__}] 📍 추출된 목적지: {task_steps}")
-        return targets, task_steps
+        print(f"🔧 추출된 도구: {targets}")
+        print(f"📍 타겟별 목적지: {steps_per_target}")
+        return targets, steps_per_target
 
 
 #############################
