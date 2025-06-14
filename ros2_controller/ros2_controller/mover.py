@@ -28,13 +28,13 @@ class Mover:
     def move_to_target(self, target):
         self._movel(target, config.VEL, config.ACC)
 
-    def _down(self):
+    def down_little(self):
         """로봇을 target으로 내리는 동작을 수행합니다."""
         current_posx = self._get_cur_posx()[0]
         current_posx[2] -= 10
         self._movel(current_posx, config.VEL, config.ACC)
 
-    def _up(self):
+    def up_little(self):
         """로봇을 target에서 들어올립니다."""
         current_posx = self._get_cur_posx()[0]
         current_posx[2] += 5

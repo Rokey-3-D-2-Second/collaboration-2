@@ -1,8 +1,9 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionServer
+from collections import deque
 
-from cb_interfaces.srv import Target, TargetCoord
+from cb_interfaces.srv import TargetCoord
 from cb_interfaces.action import TaskSteps
 
 from .mover import Mover
@@ -17,14 +18,13 @@ DR_init.__dsr__model = config.ROBOT_MODEL
 
 class Controller:
     def __init__(self, node: Node):
-        # super().__init__('drawer_and_eraser', namespace=ROBOT_ID)
-
         self.node = node
+        self.targets = deque()  # 여러 target 좌표를 큐로 관리
 
         # service server for target coord
         self.target_coord_srv = self.node.create_service(
             TargetCoord,
-            '/target_coord',
+            config.TARGET_COORD,
             self.handle_target_coord
         )
         
@@ -32,7 +32,7 @@ class Controller:
         self.task_steps_action_server = ActionServer(
             self.node,
             TaskSteps,
-            '/task_steps',
+            config.TASK_STEPS,
             self.handle_task_steps
         )
 
@@ -40,7 +40,39 @@ class Controller:
         self.forcer = Forcer()
         self.gripper = Gripper()
         
-        self.last_pose = None  # 최근 받은 좌표 저장용
+        # step 이름과 함수 매핑
+        self.task_step_funcs = {
+            "move_home": self.step_move_home,
+            "move_target": self.step_move_target,
+            "move_tray": self.step_move_tray,
+            "force": self.step_force,
+            "close_grip": self.step_close_grip,
+            "open_grip": self.step_open_grip,
+        }
+
+    # 각 step별 함수 정의
+    def step_move_home(self, target=None):
+        self.mover.move_to_home()
+
+    def step_move_target(self, target):
+        self.mover.move_to_target(target)
+        
+    def step_move_tray(self, target=None):
+        self.mover.move_to_tray()
+
+    def step_force(self, target=None):
+        self.forcer.force_on()
+        self.forcer.check_touch()
+        self.forcer.force_off()
+        self.mover.up_little()
+
+    def step_close_grip(self, target=None):
+        self.gripper.close_grip()
+        self.mover.up_little()
+
+    def step_open_grip(self, target=None):
+        self.gripper.open_grip()
+        self.mover.down_little()
 
     def set_dependencies(
         self, 
@@ -49,59 +81,66 @@ class Controller:
         self.check_motion = check_motion
         
     def handle_target_coord(self, request, response):
-        pose = request.pose  # [x, y, z, a, b, c]
-        self.last_pose = pose  # 좌표 저장
-        
-        response.succeed = True
-        return response
+        try:
+            self.node.get_logger().info(f"request: {request.pose}")
+            pose = request.pose
+            self.targets.append(pose)
+
+            response.succeed = True
+            self.node.get_logger().info(f"resposne: {response.succeed}")
+            return response
+
+        except Exception as e:
+            self.node.get_logger().error(f"target_coord service exception: {e}")
+            response.succeed = False
+            return response
 
     def handle_task_steps(self, goal_handle):
-        # steps: [move, force_on, force_off, close_grip, open_grip]
         steps = goal_handle.request.steps
         success = True
         message = "Task completed"
 
         try:
-            # Feedback
+            self.mover.move_to_home()
+            self.gripper.close_grip()
+
+            # target 큐에서 하나 꺼내기 (없으면 5초 대기)
+            wait_time = 0.0
+            while not self.targets and wait_time < 5.0:
+                self.node.get_logger().warn('Waiting for target coordinate...')
+                rclpy.spin_once(self.node, timeout_sec=0.1)
+                wait_time += 0.1
+            
+            if not self.targets:
+                raise exceptions.ROS2_CONTROLLER_ERROR(303)
+            
+            target = self.targets.popleft()
+
             feedback = TaskSteps.Feedback()
             for idx, step in enumerate(steps):
                 feedback.current_step = idx
                 feedback.step_desc = f"Executing: {step}"
                 goal_handle.publish_feedback(feedback)
+                self.node.get_logger().info(f"피드백 publish: {feedback.current_step}, {feedback.step_desc}")
 
-                if step == "move":
-                    # 최근 저장된 좌표가 있으면 그 좌표로 이동, 없으면 홈으로 이동
-                    if self.last_pose is not None:
-                        self.mover.move_to_target(self.last_pose)
-                        self.last_pose = None
+                func = self.task_step_funcs.get(step)
+                if func is not None:
+                    if step == "move_target":
+                        func(target)
                     else:
-                        self.mover.move_to_tray()
-                elif step == "force":
-                    self.forcer.force_on()
-                    self.forcer.check_touch()
-                    self.forcer.force_off()
-                    self.mover._up()
-                elif step == "close_grip":
-                    if self.gripper.is_close():
-                        self.gripper.open_grip()
-                    self.gripper.close_grip()
-                    self.mover._up()
-                elif step == "open_grip":
-                    if self.gripper.is_open():
-                        self.gripper.close_grip()
-                    self.gripper.open_grip()
-                    self.mover._down()
+                        func()
                 else:
                     raise exceptions.ROS2_CONTROLLER_ERROR(300)
-                
+
             self.mover.move_to_home()
             self.gripper.close_grip()
+
         except Exception as e:
             success = False
             message = f"Failed at step {idx+1} ({step} : {e})"
             self.node.get_logger().error(message)
+        
         finally:
-            # Result
             result = TaskSteps.Result()
             result.success = success
             result.message = message
@@ -220,11 +259,9 @@ def main():
     except KeyboardInterrupt:
         controller.forcer.force_off()
         node.get_logger().info("Shutting down ...")
-        pass
-
-    del controller
-    rclpy.shutdown()
-
+    finally:
+        del controller
+        rclpy.shutdown()
 
 if __name__ == 'main':
     main()

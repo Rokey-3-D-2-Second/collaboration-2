@@ -15,16 +15,10 @@ class Gripper:
     def close_grip(self):
         self.gripper.close_gripper()
         time.sleep(2.0)
-        # status = self.get_status()
-        # print(f"{__name__}: {status}")
-        # if status[1] == 0:
-        #     raise exceptions.ROS2_CONTROLLER_ERROR(301)
 
     def open_grip(self):
         self.gripper.open_gripper()
         time.sleep(2.0)
-        # status = self.get_status()
-        # print(f"{__name__}: {status}")
         
     def is_close(self):
         return self.get_status()[1] == 1
