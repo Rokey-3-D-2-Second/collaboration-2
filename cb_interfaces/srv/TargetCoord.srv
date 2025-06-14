@@ -1,0 +1,4 @@
+# TargetCoord.srv
+float32[6] pose            # [x, y, z, a, b, c]
+---
+bool succeed

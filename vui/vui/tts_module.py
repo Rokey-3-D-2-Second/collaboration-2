@@ -9,8 +9,7 @@ class TTSModule:
         pass
 
     def speak(self, text: str):
-        print(f"[{__name__}] 🗣️ gTTS 변환 중: {text}")
-
+        print(f"🗣️ gTTS 변환 중: {text}")
         try:
             tts = gTTS(text=text, lang='ko')  # 한국어
         except Exception:
@@ -25,4 +24,4 @@ class TTSModule:
 #############################
 if __name__ == "__main__":
     tts = TTSModule()
-    tts.speak("[{__name__}] 안녕하세요. 로키입니다. 무엇을 도와드릴까요?")
+    tts.speak("안녕하세요. 로키입니다. 무엇을 도와드릴까요?")

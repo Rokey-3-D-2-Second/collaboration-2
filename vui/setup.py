@@ -26,7 +26,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-        'vui = vui.voice_interface:main',
+            'vui = vui.voice_interface:main',
         ],
     },
 )

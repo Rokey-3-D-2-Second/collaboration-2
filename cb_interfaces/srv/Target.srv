@@ -1,0 +1,6 @@
+# Target.srv
+string target_name         # fork, knife, spoon
+---
+bool found                 # 객체 탐지 성공 여부
+# float32[4] bbox            # [x_min, y_min, x_max, y_max] (Optional)
+# float32 score              # confidence (Optional)

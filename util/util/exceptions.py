@@ -9,7 +9,7 @@ class IMAGE_PROCESSOR_ERROR(Exception):
         102: "이미지 처리 중 알 수 없는 오류가 발생했습니다.",
     }
 
-    def __init__(self, code):
+    def __init__(self, code: int):
         super().__init__(code)
         tb = traceback.extract_stack()[-2]
         self.file = tb.filename
@@ -29,7 +29,7 @@ class REALSENSE_CAMERA_ERROR(Exception):
         202: "카메라 권한 오류.",
     }
 
-    def __init__(self, code):
+    def __init__(self, code: int):
         super().__init__(code)
         tb = traceback.extract_stack()[-2]
         self.file = tb.filename
@@ -44,12 +44,12 @@ class REALSENSE_CAMERA_ERROR(Exception):
 # ros2_controller
 class ROS2_CONTROLLER_ERROR(Exception):
     ERROR_MESSAGES = {
-        300: "ROS2 컨트롤러 초기화 실패.",
-        301: "명령 전송 실패.",
-        302: "컨트롤러 응답 없음.",
+        300: "Unkown Step",
+        301: "No detection on Gripper",
+        302: "No Target",
     }
 
-    def __init__(self, code):
+    def __init__(self, code: int):
         super().__init__(code)
         tb = traceback.extract_stack()[-2]
         self.file = tb.filename
@@ -68,6 +68,10 @@ class VUI_ERROR(Exception):
         400: "음성 인식 실패.",
         401: "명령어 해석 실패.",
         402: "키워드 추출 실패.",
+        403: "타겟과 작업 단계의 개수가 일치하지 않습니다.",
+        404: "유효하지 않은 타겟이 포함되어 있습니다.",
+        405: "유효하지 않은 작업 단계가 포함되어 있습니다.",
+        406: "Exit"
     }
     """
 
@@ -75,9 +79,13 @@ class VUI_ERROR(Exception):
         400: "음성 인식 실패.",
         401: "키워드 추출 실패.",
         402: "명령어 해석 실패.",
+        403: "타겟과 작업 단계의 개수가 일치하지 않습니다.",
+        404: "유효하지 않은 타겟이 포함되어 있습니다.",
+        405: "유효하지 않은 작업 단계가 포함되어 있습니다.",
+        406: "Exit"
     }
 
-    def __init__(self, code):
+    def __init__(self, code: int):
         super().__init__(code)
         tb = traceback.extract_stack()[-2]
         self.file = tb.filename
