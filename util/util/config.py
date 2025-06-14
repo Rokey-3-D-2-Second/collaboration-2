@@ -1,7 +1,11 @@
 # ======================================================== #
 # cb_interfaces
-target = ["fork", "knife", "spoon"]
-task_steps = ["move", "force", "close_grip", "open_grip"]
+valid_targets = ["fork", "knife", "spoon"]
+valid_task_steps = ["move_target", "move_tray", "move_home", "force", "close_grip", "open_grip"]
+
+TARGET='/target'
+TARGET_COORD='/target_coord'
+TASK_STEPS='/task_steps'
 
 # ======================================================== #
 # image_processor
@@ -32,76 +36,49 @@ TOOLCHARGER_PORT = '502'
 # ======================================================== #
 # vui
 prompt_template = """
-    너는 의료 도구(영문명: fork, knife, spoon)를 분류하고 트레이에 세팅하하는 로봇의 언어 인터페이스를 설계하고 있다.
+너는 사용자 명령에서
+- 타겟(target): fork, knife, spoon (복수일 수 있음, 공백 구분)
+- 작업 단계(task_step): move_target, move_tray, move_home, force, close_grip, open_grip (복수일 수 있음, 공백 구분)
+을 추출한다.
 
-    사용 가능한 값:
+아래 규칙을 반드시 따른다!!
 
-    - tool: ["fork", "knife", "spoon"]
-    - destination: ["tray"]
-    - task_steps: ["move", "force_on", "force_off", "close_grip", "open_grip"]
+출력 규칙
+- 각 타겟마다 일련의 작업단계(task_step) 시퀀스를 매칭해서 /로 구분
+- 여러 타겟이 있으면 각 타겟별로 /로 구분된 task_step 시퀀스를 나열
+- 타겟 수와 총 작업 단계 수는 반드시 동일해야 한다.
+- 타겟 정보가 부족하면: / task_steps
+- 작업 정보가 부족하면: targets /
+- 둘 다 부족하면: /
+- 반드시 아무런 설명 없이 결과만 출력한다.
 
-    지침:
+# 아래와 같은 입출력 포맷을 반드시 지킨다.
 
-    - 사용자의 명령어를 받으면, 각 도구는 YOLO에 Service 형식으로, 목적지로 가기 위한 작업 단계는 Controller에 action 형식으로 보내야 한다.
-    - 각 단계는 task_step에 따른 action(동작)과 필요한 경우 target(대상, 예: "fork", "tray") 또는 destination(목적지, 예: "tray")을 포함해야 한다.
-    - move의 첫 번째는 항상 "target"(도구명), 두 번째는 항상 "destination"(목적지명)을 사용한다.
-    - 여러 도구가 명령에 포함되면, 각 도구별로 동일한 task_steps 시퀀스를 순차적으로 반복한다.
-    - 도구명이 허용된 목록[허용된 도구: fork, knife, spoon]에 없으면 다음과 같이 자연어 음성 출력:
-        - "사용 가능한 도구가 아닙니다.”
-    - **YOLO 결과가 입력에 포함된 경우, 해당 도구가 인식되지 않으면 반드시 자연어 안내만 출력한다:**
-        - "타겟을 인식할 수 없습니다. 도구를 확인 후 다시 시도하세요."
-    - 예외 상황(수량 부족 등)에는 자연어 메시지만 출력:
-        - 예: "도구 수량 부족으로 작업을 완료할 수 없습니다."
+# 입력: "사용자 명령"
+# 출력: target1 [target2 ...] / step1 step2 ... / step1 step2 ... (타겟별로)
 
-    예시 1:
-    입력:
-    포크, 스푼 트레이에 세팅해줘
+예시
+입력: "포크를 집어서 트레이에 세팅해줘"
+출력: fork / move_target force open_grip close_grip move_tray open_grip move_home
 
-    출력:
-    {
-        "task_steps": [
-            {"action": "move", "target": "fork"},
-            {"action": “force_on”, "close_grip", “force_off”},
-            {"action": "move", "destination": "tray"},
-            {"action": "open_grip"},
-            {"action": "move", "target": "spoon"},
-            {"action": “force_on”, "close_grip", “force_off”},
-            {"action": "move", "destination": "tray"},
-            {"action": "open_grip"}
-        ]
-    }
+입력: "스푼 줘"
+출력: spoon / move_target force open_grip close_grip move_tray open_grip move_home
 
-    예시 2:
-    입력:
-    나이프 트레이에 세팅해줘
+입력: "집에 가"
+출력: / move_home
 
-    출력:
-    {
-        "task_steps": [
-            {"action": "move", "target": "knife"},
-            {"action": “force_on”, "close_grip", “force_off”},
-            {"action": "move", "destination": "tray"},
-            {"action": "open_grip"}
-        ]
-    }
+입력: "포크만"
+출력: fork /
 
-    예시 3:
-    입력:
-    핀셋 트레이에 세팅해줘
+입력: "포크는 집으로, 스푼은 트레이에 세팅해줘"
+출력: fork spoon / move_target force open_grip close_grip move_home open_grip / move_target force open_grip close_grip move_tray open_grip move_home
 
-    출력:
-    사용 가능한 도구가 아닙니다.
+입력: "뭐라고 말하는지 모르겠음"
+출력: /
 
-    예시 4:
-    입력:
-    포크 트레이에 세팅해줘 (YOLO 결과: fork 인식 불가)
+아래와 같이 입력이 주어졌을 때, 반드시 동일한 포맷으로 답하라.
 
-    출력:
-    타겟을 인식할 수 없습니다. 물체를 확인 후 다시 시도하세요.
-
-    입력:
-        {input}
-        YOLO 결과: {yolo_result}
-    출력:
+입력: "{user_input}"
+출력:
 """
 user_input="user_input"
