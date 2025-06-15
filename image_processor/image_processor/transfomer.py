@@ -1,0 +1,31 @@
+from pathlib import Path
+import numpy as np
+from scipy.spatial.transform import Rotation
+
+class Transformer:
+    def __init__(self):
+        # 모델 파일 경로 설정 및 로드
+        T_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "T_gripper2camera.npy"
+        if not T_path.exists():
+            raise FileNotFoundError(f"파일 경로가 존재하지 않음: {T_path}")
+        
+        self.T_gripper2camera = np.load(T_path)
+        print(self.T_gripper2camera)
+
+    def base2camera(self, xyz, robot_pos):
+        base2gripper = self.base2gripper(robot_pos)
+        gripper2camera = self.T_gripper2camera
+
+        base2camera = base2gripper @ gripper2camera
+        camera2target = np.append(np.array(xyz), 1)
+        target_coord = np.dot(base2camera, camera2target)
+
+        return [float(target_coord[0]), float(target_coord[1]), float(target_coord[2]), 90.0, 180.0, 180.0]
+    
+    def base2gripper(self, robot_pos):
+        x, y, z, rx, ry, rz = robot_pos
+        R = Rotation.from_euler("ZYZ", [rx, ry, rz], degrees=True).as_matrix()
+        T = np.eye(4)
+        T[:3, :3] = R
+        T[:3, 3] = [x, y, z]
+        return T
