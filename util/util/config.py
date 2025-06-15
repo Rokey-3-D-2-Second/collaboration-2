@@ -10,6 +10,10 @@ TASK_STEPS='/task_steps'
 # ======================================================== #
 # image_processor
 
+CAMERA_INFO="/camera/camera/color/camera_info"
+COLOR_IMAGE="/camera/camera/color/image_raw/compressed"
+ALIGNED_IMAGE="/camera/camera/aligned_depth_to_color/image_raw"
+
 # ======================================================== #
 # realsense_camera
 
