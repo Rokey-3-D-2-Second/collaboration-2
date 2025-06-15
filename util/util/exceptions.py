@@ -3,10 +3,24 @@ import traceback
 # ======================================================== #
 # image_processor
 class IMAGE_PROCESSOR_ERROR(Exception):
+    """
     ERROR_MESSAGES = {
-        100: "이미지 파일을 찾을 수 없습니다.",
-        101: "이미지 포맷이 잘못되었습니다.",
-        102: "이미지 처리 중 알 수 없는 오류가 발생했습니다.",
+        100: "이미지/깊이/내부파라미터 미수신",
+        101: "타겟을 찾을 수 없습니다.",
+        103: "유효하지 않은 깊이 값",
+        104: "이미지 처리 중 알 수 없는 오류가 발생했습니다.",
+        105: "이미지 처리 중 알 수 없는 오류가 발생했습니다.",
+        106: "Exit"
+    }
+    """
+
+    ERROR_MESSAGES = {
+        100: "이미지/깊이/내부파라미터 미수신",
+        101: "타겟을 찾을 수 없습니다.",
+        103: "유효하지 않은 깊이 값",
+        104: "이미지 처리 중 알 수 없는 오류가 발생했습니다.",
+        105: "이미지 처리 중 알 수 없는 오류가 발생했습니다.",
+        106: "Exit"
     }
 
     def __init__(self, code: int):
@@ -43,6 +57,14 @@ class REALSENSE_CAMERA_ERROR(Exception):
 # ======================================================== #
 # ros2_controller
 class ROS2_CONTROLLER_ERROR(Exception):
+    """
+    ERROR_MESSAGES = {
+        300: "Unkown Step",
+        301: "No detection on Gripper",
+        302: "No Target",
+    }
+    """
+
     ERROR_MESSAGES = {
         300: "Unkown Step",
         301: "No detection on Gripper",
