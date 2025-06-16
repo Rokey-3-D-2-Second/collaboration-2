@@ -21,7 +21,7 @@ class PlanningSceneWorldPublisher(Node):
             10
         )
 
-        self.get_logger().info('Initialized: relaying /octomap_full to /planning_scene_world')
+        self.get_logger().info('Initialized: relaying /octomap_binary to /planning_scene_world')
 
     def octomap_callback(self, msg: Octomap):
         scene_world = PlanningSceneWorld()
