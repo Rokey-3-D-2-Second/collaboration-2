@@ -35,7 +35,7 @@ class Mover:
     def down_little(self):
         """로봇을 target으로 내리는 동작을 수행합니다."""
         current_posx = self._get_cur_posx()[0]
-        current_posx[2] -= 15
+        current_posx[2] -= 25
         self._movel(current_posx, config.VEL, config.ACC)
 
     def up_little(self):
