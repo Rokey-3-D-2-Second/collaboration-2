@@ -2,25 +2,50 @@ from pathlib import Path
 import numpy as np
 from scipy.spatial.transform import Rotation
 
+from util import exceptions
+
 class Transformer:
     def __init__(self):
         # 모델 파일 경로 설정 및 로드
-        T_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "T_gripper2camera.npy"
-        if not T_path.exists():
-            raise FileNotFoundError(f"파일 경로가 존재하지 않음: {T_path}")
+        # T_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "T_gripper2camera.npy"
+        T_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/T_gripper2camera.npy"
+        # if not T_path.exists():
+        #     raise FileNotFoundError(f"파일 경로가 존재하지 않음: {T_path}")
         
         self.T_gripper2camera = np.load(T_path)
         print(self.T_gripper2camera)
 
-    def base2camera(self, xyz, robot_pos):
+    # def base2camera(self, xyz, robot_pos):
+    #     base2gripper = self.base2gripper(robot_pos)
+    #     gripper2camera = self.T_gripper2camera
+
+    #     base2camera = base2gripper @ gripper2camera
+    #     camera2target = np.append(np.array(xyz), 1)
+    #     target_coord = np.dot(base2camera, camera2target)
+
+    #     return [float(target_coord[0]), float(target_coord[1]), float(target_coord[2]), 90.0, 180.0, 180.0]
+
+    def camera2base(self, xyz, robot_pos):
+        """
+        Camera 좌표계 물체 좌표 (xyz) 를 로봇 Base 좌표계로 변환한다.
+        """
+        if robot_pos is None:
+            raise exceptions.IMAGE_PROCESSOR_ERROR(104)
+
         base2gripper = self.base2gripper(robot_pos)
         gripper2camera = self.T_gripper2camera
 
-        base2camera = base2gripper @ gripper2camera
-        camera2target = np.append(np.array(xyz), 1)
-        target_coord = np.dot(base2camera, camera2target)
+        camera2target = np.eye(4)
+        camera2target[:3, 3] = xyz  # rotation은 필요 없으므로 translation만
 
-        return [float(target_coord[0]), float(target_coord[1]), float(target_coord[2]), 90.0, 180.0, 180.0]
+        base2target = base2gripper @ gripper2camera @ camera2target
+
+        return [
+            float(base2target[0, 3]),
+            float(base2target[1, 3]),
+            float(base2target[2, 3]),
+            90.0, 180.0, 180.0,
+        ]
     
     def base2gripper(self, robot_pos):
         x, y, z, rx, ry, rz = robot_pos
