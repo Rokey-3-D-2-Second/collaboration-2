@@ -12,6 +12,9 @@ class Gripper:
             config.TOOLCHARGER_PORT
         )
 
+        # init gripper
+        self.close_grip()
+
     def close_grip(self):
         self.gripper.close_gripper()
         time.sleep(2.0)
