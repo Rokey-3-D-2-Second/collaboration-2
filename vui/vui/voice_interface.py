@@ -21,8 +21,6 @@ sys.stderr = open(os.devnull, 'w')
 class VoiceInterface(Node):
     def __init__(self):
         super().__init__('voice_interface')
-        load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "../resource/.env"))
-        self.api_key = os.getenv("OPENAI_API_KEY")
 
         self.stt = STTModule()
         self.langchain = LangChainModule()
@@ -38,6 +36,7 @@ class VoiceInterface(Node):
         self.action_count = 0
 
         self.start_once = self.create_timer(0.1, self.run)
+
 
     # STT
     def listener(self):
@@ -102,12 +101,14 @@ class VoiceInterface(Node):
         # 모든 서비스 응답이 끝났을 때만 액션 실행
         if self.target_count > 0:
             self.get_logger().info(f"남은 서비스 응답 존재: {self.target_count}")
+            self.exit()
             return
         self.get_logger().info("모든 서비스 응답 종료")
 
         # 모든 타겟을 탐지했을 때만 액션 실행
         if not all(self.target_service_results):
             self.get_logger().error(f"탐지 실패 타겟 존재: {target}")
+            self.exit()
             return
         self.get_logger().info('모든 타겟 탐지 성공')
 
@@ -121,6 +122,7 @@ class VoiceInterface(Node):
         # 액션 서버 연결 확인
         if not self.task_steps_action_client.wait_for_server(timeout_sec=5.0):
             self.get_logger().error("TaskSteps 액션 서버를 찾을 수 없습니다.")
+            self.exit()
             return
 
         # 액션 goal 생성 및 전송
@@ -143,6 +145,7 @@ class VoiceInterface(Node):
         goal_handle = future.result()
         if not goal_handle.accepted:
             self.get_logger().error("Goal rejected")
+            self.exit()
             return
         self.get_logger().info("Goal accepted, 결과 대기 중...")
         
@@ -166,6 +169,10 @@ class VoiceInterface(Node):
         try:
             # STT
             user_text = self.listener()
+            # user_text = "칼 가져와"
+            # user_text = "숟가락 가져와"
+            # user_text = "포크 가져와"
+
             # LangChain
             targets, task_steps_per_target = self.langchain.extract(user_text)
         
