@@ -8,12 +8,22 @@ from .yolo import Yolo
 from .transfomer import Transformer
 
 from util import config, exceptions
-from ros2_controller import mover
+# from ros2_controller import mover
 from collections import deque
 
+from dsr_msgs2.srv import GetCurrentPosx
+import DR_init
+DR_init.__dsr__id = config.ROBOT_ID
+DR_init.__dsr__model = config.ROBOT_MODEL
+
+# robot_pos = None
+
 class ImageProcessor(Node):
-    def __init__(self):
+# class ImageProcessor:
+    def __init__(self, ):
         super().__init__('image_processor')
+
+        # self.node: Node = node
         
         self.yolo = Yolo()
         self.tf = Transformer()
@@ -24,8 +34,9 @@ class ImageProcessor(Node):
         
         qos = 10  # QoS 깊이 (구독 품질 설정)
 
-        self.create_subscription(JointState, "/dsr01/joint_states", self.joint_cb, qos)
-        
+        # self.create_subscription(JointState, "/dsr01/joint_states", self.joint_cb, qos)
+        # self.get_current_posx = get_current_posx
+
         # RealSense 카메라의 토픽 구독 설정
         self.create_subscription(CameraInfo, config.CAMERA_INFO, self.info_cb, qos)         # 카메라 내부 파라미터
         self.create_subscription(CompressedImage, config.COLOR_IMAGE, self.color_cb, qos)   # 컬러 영상 (압축)
@@ -41,7 +52,8 @@ class ImageProcessor(Node):
 
         # 서비스 클라이언트: TargetCoord
         self.target_coord_client = self.create_client(TargetCoord, config.TARGET_COORD)
-        
+        self.get_current_posx = self.create_client(GetCurrentPosx, "/dsr01/aux_control/get_current_posx")
+
         # 타이머: 큐에 pose가 있으면 TargetCoord로 전달
         # self.create_timer(0.1, self.process_pose_queue)
 
@@ -50,10 +62,35 @@ class ImageProcessor(Node):
         cv2.resizeWindow("YOLO Detection", 640, 480)
 
         # 타이머: 주기적으로 detection 결과를 OpenCV로 출력
-        self.create_timer(0.03, self.visualize_detection)
+        self.create_timer(0.05, self.visualize_detection)
 
-    def joint_cb(self, msg: JointState):
-        self.robot_pos = msg.position
+        self.create_timer(1.0, self.get_current_pose)
+
+    # def joint_cb(self, msg: JointState):
+    #     self.robot_pos = msg.position
+
+    def get_current_pose(self):
+        req = GetCurrentPosx.Request()  
+        req.ref = 0
+
+        future = self.get_current_posx.call_async(req)
+        future.add_done_callback(self.set_current_pose)
+
+    def set_current_pose(self, future):
+        if future.done() and future.result() is not None:
+            result = future.result()
+
+        if not result.task_pos_info or len(result.task_pos_info) == 0:
+            self.get_logger().warn("result.task_pos_info가 비어 있습니다.")
+            return
+        
+        posx_info = result.task_pos_info[0].data
+        pos = []
+        for i in range(6):
+            pos.append(posx_info[i])
+        sol = int(round( posx_info[6] ))
+
+        self.robot_pos = pos
 
     def info_cb(self, msg: CameraInfo):
         # 카메라 내부 파라미터 콜백 (intrinsics 행렬에서 fx, fy, cx, cy 추출)
@@ -123,7 +160,8 @@ class ImageProcessor(Node):
             self.get_logger().info(f"before_tf: {before_tf}")
 
             # 3. Transformation(camera to tcp)
-            after_tf = self.tf.base2camera(before_tf, self.robot_pos)
+            # after_tf = self.tf.camera2base(before_tf, self.robot_pos)
+            after_tf = self.tf.camera2base(before_tf, self.robot_pos)
             self.get_logger().info(f"after_tf: {after_tf}")
 
             # 4. target_coord_client 비동기 통신으로 pose 전달
@@ -206,6 +244,10 @@ class ImageProcessor(Node):
     #         self.get_logger().info(f"[RESPONSE] TargetCoord 응답: succeed={result.succeed}")
     #     else:
     #         self.get_logger().error("[RESPONSE] TargetCoord 서비스 호출 실패 또는 타임아웃")
+
+# def get_current_pose(get_current_posx):
+#     global robot_pos
+#     robot_pos = get_current_posx()[0]
 
 def main():
     rclpy.init()

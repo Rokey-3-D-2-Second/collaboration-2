@@ -13,13 +13,15 @@ logging.getLogger("ultralytics").setLevel(logging.ERROR)
 class Yolo:
     def __init__(self):
         # 모델 파일 경로 설정 및 로드
-        model_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "yolo11n.pt"
-        if not model_path.exists():
-            raise FileNotFoundError(f"모델 경로가 존재하지 않음: {model_path}")
+        # model_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "yolo11n.pt"
+        model_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/yolo11n.pt"
+        # if not model_path.exists():
+        #     raise FileNotFoundError(f"모델 경로가 존재하지 않음: {model_path}")
         
-        label_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "coco.yaml"
-        if not label_path.exists():
-            raise FileNotFoundError(f"라벨 경로가 존재하지 않음: {label_path}")
+        # label_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "coco.yaml"
+        label_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/coco.yaml"
+        # if not label_path.exists():
+        #     raise FileNotFoundError(f"라벨 경로가 존재하지 않음: {label_path}")
 
         self.model = YOLO(model_path, verbose=False)
 
@@ -39,8 +41,8 @@ class Yolo:
     def _aggregate_detections(
             self, 
             results, 
-            confidence_threshold=0.5, 
-            iou_threshold=0.5
+            confidence_threshold=0.4, 
+            iou_threshold=0.4
     ):
         """
         여러 프레임의 YOLO 결과를 IoU 기반으로 그룹핑하여
