@@ -6,7 +6,7 @@ from util import config
 
 class Mover:
     home = posx([372.49, 16.510, 170.42, 90.0, 180.0, 180.0])
-    tray = posx([572.49, 16.510, 70.42, 90.0, 180.0, 180.0])
+    tray = posx([602.49, 16.510, 70.42, 90.0, 180.0, 90.0])
     
     def set_dependencies(
             self,
@@ -19,6 +19,9 @@ class Mover:
         self._movel = movel
         self._get_current_posx = get_current_posx
 
+        # init pose
+        self.move_to_home()
+
     def move_to_home(self):
         self._movel(self.home, config.VEL, config.ACC)
 
@@ -26,12 +29,13 @@ class Mover:
         self._movel(self.tray, config.VEL, config.ACC)
 
     def move_to_target(self, target):
+        target[2] += 10
         self._movel(target, config.VEL, config.ACC)
 
     def down_little(self):
         """로봇을 target으로 내리는 동작을 수행합니다."""
         current_posx = self._get_cur_posx()[0]
-        current_posx[2] -= 10
+        current_posx[2] -= 15
         self._movel(current_posx, config.VEL, config.ACC)
 
     def up_little(self):
