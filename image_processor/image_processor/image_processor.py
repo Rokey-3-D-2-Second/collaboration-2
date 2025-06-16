@@ -8,7 +8,6 @@ from .yolo import Yolo
 from .transfomer import Transformer
 
 from util import config, exceptions
-# from ros2_controller import mover
 from collections import deque
 
 from dsr_msgs2.srv import GetCurrentPosx
@@ -16,58 +15,40 @@ import DR_init
 DR_init.__dsr__id = config.ROBOT_ID
 DR_init.__dsr__model = config.ROBOT_MODEL
 
-# robot_pos = None
-
 class ImageProcessor(Node):
-# class ImageProcessor:
     def __init__(self, ):
         super().__init__('image_processor')
 
-        # self.node: Node = node
-        
         self.yolo = Yolo()
         self.tf = Transformer()
         self.bridge = CvBridge()
         self.intrinsics = None  # 카메라 내부 파라미터
         self.color_image = None # 컬러 이미지
         self.depth_image = None # 깊이 이미지
+
+        self.before_tf = None
+        self.after_tf = None
+        self.pose_queue = deque()
         
         qos = 10  # QoS 깊이 (구독 품질 설정)
-
-        # self.create_subscription(JointState, "/dsr01/joint_states", self.joint_cb, qos)
-        # self.get_current_posx = get_current_posx
 
         # RealSense 카메라의 토픽 구독 설정
         self.create_subscription(CameraInfo, config.CAMERA_INFO, self.info_cb, qos)         # 카메라 내부 파라미터
         self.create_subscription(CompressedImage, config.COLOR_IMAGE, self.color_cb, qos)   # 컬러 영상 (압축)
         self.create_subscription(Image, config.ALIGNED_IMAGE, self.depth_cb, qos)           # 깊이 영상 (컬러와 정렬됨)
 
-        self.before_tf = None
-        self.after_tf = None
-        self.pose_queue = deque()
-
-        # 서비스 서버: Target
-        # self.create_service(Target, config.TARGET, self.handle_target_request)
+        # 서비스
         self.create_service(Target, config.TARGET, self.handle_target)
-
-        # 서비스 클라이언트: TargetCoord
         self.target_coord_client = self.create_client(TargetCoord, config.TARGET_COORD)
         self.get_current_posx = self.create_client(GetCurrentPosx, "/dsr01/aux_control/get_current_posx")
-
-        # 타이머: 큐에 pose가 있으면 TargetCoord로 전달
-        # self.create_timer(0.1, self.process_pose_queue)
 
         # CV
         cv2.namedWindow("YOLO Detection", cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
         cv2.resizeWindow("YOLO Detection", 640, 480)
 
-        # 타이머: 주기적으로 detection 결과를 OpenCV로 출력
-        self.create_timer(0.05, self.visualize_detection)
-
+        # 타이머
         self.create_timer(1.0, self.get_current_pose)
-
-    # def joint_cb(self, msg: JointState):
-    #     self.robot_pos = msg.position
+        self.create_timer(0.05, self.visualize_detection)
 
     def get_current_pose(self):
         req = GetCurrentPosx.Request()  
@@ -160,7 +141,6 @@ class ImageProcessor(Node):
             self.get_logger().info(f"before_tf: {before_tf}")
 
             # 3. Transformation(camera to tcp)
-            # after_tf = self.tf.camera2base(before_tf, self.robot_pos)
             after_tf = self.tf.camera2base(before_tf, self.robot_pos)
             self.get_logger().info(f"after_tf: {after_tf}")
 
@@ -203,51 +183,6 @@ class ImageProcessor(Node):
 
     def exit(self):
         raise exceptions.IMAGE_PROCESSOR_ERROR(106)
-
-    # def handle_target_request(self, request, response):
-    #     self.get_logger().info(f"요청 받은 target_name: {request.target_name}")
-    #     if request.target_name in self.valid_targets:
-    #         pose = [472.49, 16.510, 50.42, 90.0, 180.0, 180.0]  # 예시 pose
-    #         self.pose_queue.append(pose)
-            
-    #         response.found = True
-    #         self.get_logger().info(f"pose 큐에 저장: {pose}")
-    #         self.get_logger().info(f"Target {request.target_name} FOUND")
-    #     else:
-    #         response.found = False
-    #         self.get_logger().info(f"Target {request.target_name} NOT FOUND")
-        
-    #     return response
-
-    # def process_pose_queue(self):
-    #     # 큐가 비었으면 리턴
-    #     if not self.pose_queue:
-    #         # self.get_logger().info('pose_queue is empty')
-    #         return
-    #     self.get_logger().info('pose_queue has pose')
-        
-    #     # 서비스 서버가 없으면 리턴
-    #     if not self.target_coord_client.wait_for_service(timeout_sec=2.0):
-    #         self.get_logger().error('TargetCoord 서비스 서버를 찾을 수 없습니다.')
-    #         return
-    #     self.get_logger().info('service server is running')
-
-    #     coord_req = TargetCoord.Request()
-    #     coord_req.pose = self.pose_queue.popleft()
-    #     future = self.target_coord_client.call_async(coord_req)
-    #     future.add_done_callback(self.target_coord_done_callback)
-    #     self.get_logger().info("service is done")
-    
-    # def target_coord_done_callback(self, future):
-    #     if future.done() and future.result() is not None:
-    #         result = future.result()
-    #         self.get_logger().info(f"[RESPONSE] TargetCoord 응답: succeed={result.succeed}")
-    #     else:
-    #         self.get_logger().error("[RESPONSE] TargetCoord 서비스 호출 실패 또는 타임아웃")
-
-# def get_current_pose(get_current_posx):
-#     global robot_pos
-#     robot_pos = get_current_posx()[0]
 
 def main():
     rclpy.init()
