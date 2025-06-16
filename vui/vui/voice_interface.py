@@ -37,9 +37,9 @@ class VoiceInterface(Node):
 
         self.start_once = self.create_timer(0.1, self.run)
 
-
     # STT
     def listener(self):
+        self.get_logger().info("🎤 5초간 음성을 입력해주세요...")
         user_text = self.stt.listen()
         self.get_logger().info(f'user_text: {user_text}')
         return user_text
@@ -91,7 +91,9 @@ class VoiceInterface(Node):
         # 서비스 응답 결과 확인 및 로깅
         response = future.result()
         if response is None:
-            self.get_logger().error("Target 서비스 호출 실패")
+            msg = "Target 서비스 호출 실패"
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
         self.get_logger().info("Target 서비스 호출 성공")
         
@@ -100,15 +102,17 @@ class VoiceInterface(Node):
 
         # 모든 서비스 응답이 끝났을 때만 액션 실행
         if self.target_count > 0:
-            self.get_logger().info(f"남은 서비스 응답 존재: {self.target_count}")
-            self.exit()
+            msg = f"남은 서비스 응답 존재: {self.target_count}"
+            self.get_logger().info(msg)
+            self.exit(msg)
             return
         self.get_logger().info("모든 서비스 응답 종료")
 
         # 모든 타겟을 탐지했을 때만 액션 실행
         if not all(self.target_service_results):
-            self.get_logger().error(f"탐지 실패 타겟 존재: {target}")
-            self.exit()
+            msg = f"탐지 실패 타겟 존재: {target}"
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
         self.get_logger().info('모든 타겟 탐지 성공')
 
@@ -121,8 +125,9 @@ class VoiceInterface(Node):
     def send_task_steps_action(self, task_steps):
         # 액션 서버 연결 확인
         if not self.task_steps_action_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("TaskSteps 액션 서버를 찾을 수 없습니다.")
-            self.exit()
+            msg = "TaskSteps 액션 서버를 찾을 수 없습니다."
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
 
         # 액션 goal 생성 및 전송
@@ -144,23 +149,31 @@ class VoiceInterface(Node):
     def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().error("Goal rejected")
-            self.exit()
+            msg = "Goal rejected"
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
         self.get_logger().info("Goal accepted, 결과 대기 중...")
         
         self.action_count += 1
+        
         get_result_future = goal_handle.get_result_async()
         get_result_future.add_done_callback(self.result_callback)
 
     def result_callback(self, future):
-        result = future.result().result
-        result_text = f"[VUI] 결과: success={result.success}, message={result.message}"
-        self.get_logger().info(result_text)
         self.action_count -= 1
+        
+        result = future.result().result
+        if not result.success:
+            msg = f"Goal {result.success}"
+            self.get_logger().error(msg)
+            self.exit(msg)
+            return
+        result_text = f"최종결과는 success={result.success}, message={result.message} 입니다."
+        self.get_logger().info(result_text)
 
         if self.action_count == 0:
-            self.exit()
+            self.exit(result_text)
 
     # RUN
     def run(self):
@@ -188,11 +201,14 @@ class VoiceInterface(Node):
             # Action to controller는 서비스 응답 후 콜백에서 실행
             
         except exceptions.VUI_ERROR as e:
-            self.get_logger().error(str(e))
-            self.exit()
+            msg = str(e)
+            self.get_logger().error(msg)
+            self.exit(msg)
         
-    def exit(self):
-        raise exceptions.VUI_ERROR(406)
+    def exit(self, msg):
+        # raise exceptions.VUI_ERROR(406)
+        self.speaker(msg)
+        self.start_once = self.create_timer(0.1, self.run)
 
 def main():
     rclpy.init()

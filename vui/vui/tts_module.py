@@ -9,7 +9,7 @@ class TTSModule:
         pass
 
     def speak(self, text: str):
-        print(f"🗣️ gTTS 변환 중: {text}")
+        # print(f"🗣️ gTTS 변환 중: {text}")
         try:
             tts = gTTS(text=text, lang='ko')  # 한국어
         except Exception:

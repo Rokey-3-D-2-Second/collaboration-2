@@ -30,9 +30,9 @@ class LangChainModule:
         """텍스트 명령어에서 타겟별 task_step 시퀀스 추출"""
         response = self.chain.invoke({config.user_input: user_input})
         raw_result = response["text"]
-        print(f"🧠 LLM 응답: {raw_result}")
+        # print(f"🧠 LLM 응답: {raw_result}")
 
-        print(f"결과를 파싱합니다.")
+        # print(f"결과를 파싱합니다.")
         try:
             parts = [p.strip() for p in raw_result.strip().split("/")]
             targets = parts[0].split() if parts[0] else []
@@ -40,8 +40,8 @@ class LangChainModule:
         except Exception:
             raise exceptions.VUI_ERROR(401)
 
-        print(f"🔧 추출된 도구: {targets}")
-        print(f"📍 타겟별 목적지: {steps_per_target}")
+        # print(f"🔧 추출된 도구: {targets}")
+        # print(f"📍 타겟별 목적지: {steps_per_target}")
         return targets, steps_per_target
 
 
