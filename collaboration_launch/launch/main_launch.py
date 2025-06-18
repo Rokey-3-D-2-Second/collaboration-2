@@ -45,7 +45,8 @@ def generate_launch_description():
             cmd=[
                 'ros2', 'run', 'octomap_server', 'tracking_octomap_server_node',
                 '--ros-args',
-                '-r', '/cloud_in:=/camera/camera/depth/color/points',
+                # '-r', '/cloud_in:=/camera/camera/depth/color/points',
+                '-r', '/cloud_in:=/filtered_points',
                 '-p', 'frame_id:=base_link',
                 '-p', 'resolution:=0.01',
                 '-p', 'point_cloud_min_x:=0.15',
@@ -63,10 +64,24 @@ def generate_launch_description():
             output='screen'
         ),
 
+        ExecuteProcess(
+            cmd=['ros2', 'run', 'realsense_camera', 'moveit'],
+            output='screen'
+        ),
+
         # 4. DSR Moveit RViz (real 모드)
+        # ExecuteProcess(
+        #     cmd=[
+        #         'ros2', 'launch', 'dsr_bringup2', 'dsr_bringup2_rviz.launch.py',
+        #         'mode:=real',
+        #         'model:=m0609',
+        #         'host:=192.168.1.100'
+        #     ],
+        #     output='screen'
+        # ),
         ExecuteProcess(
             cmd=[
-                'ros2', 'launch', 'dsr_bringup2', 'dsr_bringup2_rviz.launch.py',
+                'ros2', 'launch', 'dsr_bringup2', 'dsr_bringup2_moveit.launch.py',
                 'mode:=real',
                 'model:=m0609',
                 'host:=192.168.1.100'
@@ -83,13 +98,18 @@ def generate_launch_description():
         ),
 
         # 6. ros2_controller
-        Node(
-            package='ros2_controller',
-            executable='controller',
-            name='ros2_controller',
-            output='screen'
+        TimerAction(
+            period=5.0,
+            actions=[
+                Node(
+                    package='ros2_controller',
+                    executable='controller',
+                    name='ros2_controller',
+                    output='screen'
+                ),
+            ]
         ),
-
+        
         # 7. vui
         # Node(
         #     package='vui',
@@ -98,7 +118,7 @@ def generate_launch_description():
         #     output='screen'
         # ),
         TimerAction(
-            period=10.0,  # 10초 후 실행
+            period=25.0,  # 25초 후 실행
             actions=[
                 Node(
                     package='vui',
