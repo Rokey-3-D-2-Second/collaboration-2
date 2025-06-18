@@ -40,7 +40,7 @@ class ImageProcessor(Node):
         # 서비스
         self.create_service(Target, config.TARGET, self.handle_target)
         self.target_coord_client = self.create_client(TargetCoord, config.TARGET_COORD)
-        self.get_current_posx = self.create_client(GetCurrentPosx, "/dsr01/aux_control/get_current_posx")
+        self.get_current_posx = self.create_client(GetCurrentPosx, config.GET_CURREN_POSX)
 
         # CV
         cv2.namedWindow("YOLO Detection", cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
