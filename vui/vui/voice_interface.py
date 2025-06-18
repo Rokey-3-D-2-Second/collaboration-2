@@ -57,19 +57,13 @@ class VoiceInterface(Node):
         self.get_logger().info(f'🗣️: {respoonse}')
 
     # Validate
-    def check_nothing(self, targets, task_steps_per_target):
+    def is_nothing(self, targets, task_steps_per_target):
         if "nothing" in targets:
-            msg = "Targets에 nothing이 포함되어 있습니다."
-            self.get_logger().error(msg)
-            self.exit(msg)
-            return
+            raise exceptions.VUI_ERROR(407)
         
         for task_steps in task_steps_per_target:
             if "nothing" in task_steps:
-                msg = "TaskSteps 액션에 nothing이 포함되어 있습니다."
-                self.get_logger().error(msg)
-                self.exit(msg)
-                return
+                raise exceptions.VUI_ERROR(408)
 
     def is_same_count(self, targets, task_steps_per_target):
         if len(targets) != len(task_steps_per_target) or len(targets) == 0:
@@ -206,7 +200,8 @@ class VoiceInterface(Node):
             # LangChain
             targets, task_steps_per_target = self.extractor(user_text)
         
-            # validate targets, task_steps_per_targets
+            # validate targets, 
+            self.is_nothing(targets, task_steps_per_target)
             self.is_same_count(targets, task_steps_per_target)
             self.is_valid_targets(targets)
             self.is_valid_task_steps(task_steps_per_target)
