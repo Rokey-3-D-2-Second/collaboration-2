@@ -23,8 +23,8 @@ class Mover:
         self._get_current_posx = get_current_posx
     
     def move_to_scan(self):
-        self._movel(self.scan[0], config.VEL, config.ACC)
-        self._movel(self.scan[1], config.VEL, config.ACC)
+        for i in self.scan:
+            self._movel(i, config.VEL, config.ACC)
         self.move_to_home()
 
     def move_to_home(self):
@@ -38,13 +38,13 @@ class Mover:
         target[2] += 15
         self._movel(target, config.VEL, config.ACC)
 
-    def down_little(self, height=10):
+    def down_little(self, height):
         """로봇을 target으로 내리는 동작을 수행합니다."""
         current_posx = self._get_cur_posx()[0]
         current_posx[2] -= height
         self._movel(current_posx, config.VEL, config.ACC)
 
-    def up_little(self, height=30):
+    def up_little(self, height):
         """로봇을 target에서 들어올립니다."""
         current_posx = self._get_cur_posx()[0]
         current_posx[2] += height

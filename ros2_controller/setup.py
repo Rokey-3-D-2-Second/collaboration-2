@@ -22,6 +22,7 @@ setup(
         'console_scripts': [
             'controller = ros2_controller.controller:main',
             'moveiter = ros2_controller.moveiter:main',
+            'monitor = ros2_controller.motion_monitor:main',
         ],
     },
 )

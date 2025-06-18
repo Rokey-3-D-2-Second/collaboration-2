@@ -39,7 +39,6 @@ class RG():
         result = self.client.read_holding_registers(
             address=258, count=1, unit=65)
         offset_mm = result.registers[0] / 10.0
-        print(f'offset_mm: {offset_mm}')
         return offset_mm
 
     def get_width(self):

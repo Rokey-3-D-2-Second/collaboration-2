@@ -57,14 +57,17 @@ class Controller:
     # move
     def step_move_home(self, target=None):
         # self.mover.move_to_home()
+        self.node.get_logger().info('step_move_home')
         self.step_motion_planner_home()
 
     def step_move_target(self, target):
         # self.mover.move_to_target(target)
+        self.node.get_logger().info('step_move_target')
         self.step_motion_planner_target(target)
         
     def step_move_tray(self, target=None):
         # self.mover.move_to_tray()
+        self.node.get_logger().info('step_move_tray')
         self.step_motion_planner_tray()
 
     # force
@@ -72,23 +75,22 @@ class Controller:
         self.forcer.force_on()
         self.forcer.check_touch()
         self.forcer.force_off()
-        self.mover.up_little()
+        self.mover.up_little(5)
 
     # gripper
     def step_close_grip(self, target=None):
         self.gripper.close_grip()
-        if self.gripper.is_close():
-            self.mover.up_little(0)
-        else:
-            self.mover.up_little()
+        status = self.gripper.is_hold()
+        if status == config.HOLDING:
+            self.mover.up_little(100)
 
     def step_open_grip(self, target=None):
-        if self.gripper.is_close():
+        status = self.gripper.is_hold()
+        if status == config.HOLDING:
             self.gripper.open_grip()
-            self.mover.down_little()
-        else:
+        elif status == config.CLOSE:
             self.gripper.open_grip()
-            self.mover.down_little(0)
+            self.mover.down_little(15)
 
     # motion planning
     def step_motion_planner_home(self):
@@ -110,8 +112,12 @@ class Controller:
         self.check_motion = check_motion
 
     def init_start(self):
-        self.step_move_home()
         self.mover.move_to_scan()
+        self.step_move_home()
+
+    def init_pose(self):
+        self.mover.move_to_home()
+        self.gripper.close_grip()
         
     def handle_target_coord(self, request, response):
         try:
@@ -134,8 +140,7 @@ class Controller:
         message = "Task completed"
 
         try:
-            self.mover.move_to_home()
-            self.gripper.close_grip()
+            self.init_pose()
 
             # target 큐에서 하나 꺼내기 (없으면 5초 대기)
             wait_time = 0.0
@@ -165,8 +170,7 @@ class Controller:
                 else:
                     raise exceptions.ROS2_CONTROLLER_ERROR(300)
 
-            self.mover.move_to_home()
-            self.gripper.close_grip()
+            self.init_pose()
 
         except Exception as e:
             success = False
