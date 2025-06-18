@@ -5,10 +5,8 @@ from rclpy.action import ActionClient
 from cb_interfaces.action import TaskSteps
 from cb_interfaces.srv import Target
 
-from dotenv import load_dotenv
 import os
 import sys
-from collections import deque
 
 from .stt_module import STTModule
 from .langchain_module import LangChainModule
@@ -58,20 +56,20 @@ class VoiceInterface(Node):
     # Validate
     def is_same_count(self, targets, task_steps_per_target):
         if len(targets) != len(task_steps_per_target) or len(targets) == 0:
-            self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
+            # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
             raise exceptions.VUI_ERROR(403)
         self.get_logger().info('타겟과 작업 단계의 개수가 일치')
 
     def is_valid_targets(self, targets):
         if not all(t in self.valid_targets for t in targets):
-            self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
+            # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
             raise exceptions.VUI_ERROR(404)
         self.get_logger().info('모든 타겟이 유효')
 
     def is_valid_task_steps(self, task_steps_per_target):
         for steps in task_steps_per_target:
             if not all(s in self.valid_task_steps for s in steps):
-                self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
+                # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
                 raise exceptions.VUI_ERROR(405)
         self.get_logger().info('모든 작업 단계가 유효')
 
