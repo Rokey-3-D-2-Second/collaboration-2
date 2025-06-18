@@ -58,7 +58,7 @@ class Yolo:
             ):
                 if score >= confidence_threshold:
                     raw.append({"box": box, "score": score, "label": int(label)})
-        print(f"_aggregate_detections - raw: {raw}")
+        # print(f"_aggregate_detections - raw: {raw}")
 
         final = []
         used = [False] * len(raw)
