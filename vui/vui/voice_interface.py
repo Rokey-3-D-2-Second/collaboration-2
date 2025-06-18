@@ -19,6 +19,7 @@ sys.stderr = open(os.devnull, 'w')
 class VoiceInterface(Node):
     def __init__(self):
         super().__init__('voice_interface')
+        self.get_logger().info('initialize start')
 
         self.stt = STTModule()
         self.langchain = LangChainModule()
@@ -34,6 +35,8 @@ class VoiceInterface(Node):
         self.action_count = 0
 
         self.start_once = self.create_timer(0.1, self.run)
+
+        self.get_logger().info('initialize done')
 
     # STT
     def listener(self):
@@ -54,6 +57,20 @@ class VoiceInterface(Node):
         self.get_logger().info(f'🗣️: {respoonse}')
 
     # Validate
+    def check_nothing(self, targets, task_steps_per_target):
+        if "nothing" in targets:
+            msg = "Targets에 nothing이 포함되어 있습니다."
+            self.get_logger().error(msg)
+            self.exit(msg)
+            return
+        
+        for task_steps in task_steps_per_target:
+            if "nothing" in task_steps:
+                msg = "TaskSteps 액션에 nothing이 포함되어 있습니다."
+                self.get_logger().error(msg)
+                self.exit(msg)
+                return
+
     def is_same_count(self, targets, task_steps_per_target):
         if len(targets) != len(task_steps_per_target) or len(targets) == 0:
             # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
@@ -75,6 +92,8 @@ class VoiceInterface(Node):
 
     # Service to Image Processor
     def call_target_services(self, targets):
+        self.get_logger().info(f'타겟: {targets}')
+
         self.targets = targets
         self.target_service_results = []
         self.target_count = len(targets)
@@ -102,7 +121,7 @@ class VoiceInterface(Node):
         if self.target_count > 0:
             msg = f"남은 서비스 응답 존재: {self.target_count}"
             self.get_logger().info(msg)
-            self.exit(msg)
+            # self.exit(msg)
             return
         self.get_logger().info("모든 서비스 응답 종료")
 
@@ -127,7 +146,7 @@ class VoiceInterface(Node):
             self.get_logger().error(msg)
             self.exit(msg)
             return
-
+        
         # 액션 goal 생성 및 전송
         goal_msg = TaskSteps.Goal()
         goal_msg.steps = task_steps
@@ -185,7 +204,7 @@ class VoiceInterface(Node):
             # user_text = "포크 가져와"
 
             # LangChain
-            targets, task_steps_per_target = self.langchain.extract(user_text)
+            targets, task_steps_per_target = self.extractor(user_text)
         
             # validate targets, task_steps_per_targets
             self.is_same_count(targets, task_steps_per_target)
