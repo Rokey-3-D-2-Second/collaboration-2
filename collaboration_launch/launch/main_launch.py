@@ -70,15 +70,6 @@ def generate_launch_description():
         ),
 
         # 4. DSR Moveit RViz (real 모드)
-        # ExecuteProcess(
-        #     cmd=[
-        #         'ros2', 'launch', 'dsr_bringup2', 'dsr_bringup2_rviz.launch.py',
-        #         'mode:=real',
-        #         'model:=m0609',
-        #         'host:=192.168.1.100'
-        #     ],
-        #     output='screen'
-        # ),
         ExecuteProcess(
             cmd=[
                 'ros2', 'launch', 'dsr_bringup2', 'dsr_bringup2_moveit.launch.py',
@@ -111,14 +102,8 @@ def generate_launch_description():
         ),
         
         # 7. vui
-        # Node(
-        #     package='vui',
-        #     executable='vui',
-        #     name='vui',
-        #     output='screen'
-        # ),
         TimerAction(
-            period=25.0,  # 25초 후 실행
+            period=30.0,  # 30초 후 실행
             actions=[
                 Node(
                     package='vui',
