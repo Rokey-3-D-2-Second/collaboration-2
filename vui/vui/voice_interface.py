@@ -64,7 +64,7 @@ class VoiceInterface(Node):
         for task_steps in task_steps_per_target:
             if "nothing" in task_steps:
                 raise exceptions.VUI_ERROR(408)
-
+        
     def is_same_count(self, targets, task_steps_per_target):
         if len(targets) != len(task_steps_per_target) or len(targets) == 0:
             # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
