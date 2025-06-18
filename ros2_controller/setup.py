@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'controller = ros2_controller.controller:main'
+            'controller = ros2_controller.controller:main',
+            'moveiter = ros2_controller.moveiter:main',
         ],
     },
 )

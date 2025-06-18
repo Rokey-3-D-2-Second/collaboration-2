@@ -1,7 +1,6 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionServer
-from collections import deque
 
 from cb_interfaces.srv import TargetCoord
 from cb_interfaces.action import TaskSteps
@@ -9,8 +8,10 @@ from cb_interfaces.action import TaskSteps
 from .mover import Mover
 from .forcer import Forcer
 from .gripper import Gripper
+from .motion_planner import Motion_Planner
 
 from util import config, exceptions
+from collections import deque
 
 import DR_init
 DR_init.__dsr__id = config.ROBOT_ID
@@ -27,7 +28,7 @@ class Controller:
             config.TARGET_COORD,
             self.handle_target_coord
         )
-        
+
         # action server for task_steps
         self.task_steps_action_server = ActionServer(
             self.node,
@@ -36,6 +37,7 @@ class Controller:
             self.handle_task_steps
         )
 
+        self.motion_planner = Motion_Planner(self.node)
         self.mover = Mover()
         self.forcer = Forcer()
         self.gripper = Gripper()
@@ -51,34 +53,65 @@ class Controller:
         }
 
     # 각 step별 함수 정의
+
+    # move
     def step_move_home(self, target=None):
-        self.mover.move_to_home()
+        # self.mover.move_to_home()
+        self.step_motion_planner_home()
 
     def step_move_target(self, target):
-        self.mover.move_to_target(target)
+        # self.mover.move_to_target(target)
+        self.step_motion_planner_target(target)
         
     def step_move_tray(self, target=None):
-        self.mover.move_to_tray()
+        # self.mover.move_to_tray()
+        self.step_motion_planner_tray()
 
+    # force
     def step_force(self, target=None):
         self.forcer.force_on()
         self.forcer.check_touch()
         self.forcer.force_off()
         self.mover.up_little()
 
+    # gripper
     def step_close_grip(self, target=None):
         self.gripper.close_grip()
-        self.mover.up_little()
+        if self.gripper.is_close():
+            self.mover.up_little(0)
+        else:
+            self.mover.up_little()
 
     def step_open_grip(self, target=None):
-        self.gripper.open_grip()
-        self.mover.down_little()
+        if self.gripper.is_close():
+            self.gripper.open_grip()
+            self.mover.down_little()
+        else:
+            self.gripper.open_grip()
+            self.mover.down_little(0)
+
+    # motion planning
+    def step_motion_planner_home(self):
+        self.motion_planner.motion_planner_home()
+        self.motion_planner.wait_move_done()
+
+    def step_motion_planner_target(self, target):
+        self.motion_planner.motion_planner_target(target)
+        self.motion_planner.wait_move_done()
+
+    def step_motion_planner_tray(self):
+        self.motion_planner.motion_planner_tray()
+        self.motion_planner.wait_move_done()
 
     def set_dependencies(
         self, 
         check_motion,
     ):
         self.check_motion = check_motion
+
+    def init_start(self):
+        self.step_move_home()
+        self.mover.move_to_scan()
         
     def handle_target_coord(self, request, response):
         try:
@@ -156,7 +189,7 @@ class Controller:
 def init_modules(
         controller: Controller,
 
-        movel, 
+        movel, movej,
         check_motion,
         
         check_force_condition,
@@ -176,7 +209,7 @@ def init_modules(
         check_motion,
     )
     controller.mover.set_dependencies(
-        movel, 
+        movel, movej,
 
         get_current_posx,
     )
@@ -204,7 +237,7 @@ def main():
         set_tcp, set_tool, 
         set_ref_coord,
 
-        movel, amovesx,
+        movel, movej,
         check_motion,
         
         check_force_condition,
@@ -224,7 +257,7 @@ def main():
     init_modules(  
         controller,
 
-        movel, 
+        movel, movej,
         check_motion,
         
         check_force_condition,
@@ -253,6 +286,8 @@ def main():
         return
 
     try:
+        print("controller initialize")
+        controller.init_start()
         print("Spin Start")
         while True:
             rclpy.spin_once(node)

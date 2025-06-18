@@ -17,14 +17,15 @@ class Gripper:
 
     def close_grip(self):
         self.gripper.close_gripper()
-        time.sleep(2.0)
+        time.sleep(1.25)
 
     def open_grip(self):
         self.gripper.open_gripper()
-        time.sleep(2.0)
+        time.sleep(1.25)
         
     def is_close(self):
-        return self.get_status()[1] == 1
+        # return self.get_status()[1] == 1
+        return self.gripper.get_fingertip_offset() <= 5
     
     def is_open(self):
         return self.get_status()[1] == 0
