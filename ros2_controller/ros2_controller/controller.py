@@ -50,6 +50,7 @@ class Controller:
             "force": self.step_force,
             "close_grip": self.step_close_grip,
             "open_grip": self.step_open_grip,
+            "detect_conta": self.step_detect_conta,
         }
 
     # 각 step별 함수 정의
@@ -57,18 +58,18 @@ class Controller:
     # move
     def step_move_home(self, target=None):
         # self.mover.move_to_home()
-        self.node.get_logger().info('step_move_home')
         self.step_motion_planner_home()
 
     def step_move_target(self, target):
         # self.mover.move_to_target(target)
-        self.node.get_logger().info('step_move_target')
         self.step_motion_planner_target(target)
         
     def step_move_tray(self, target=None):
         # self.mover.move_to_tray()
-        self.node.get_logger().info('step_move_tray')
         self.step_motion_planner_tray()
+
+    def step_detect_conta(self):
+        self.step_motion_planner_conta()
 
     # force
     def step_force(self, target=None):
@@ -94,15 +95,23 @@ class Controller:
 
     # motion planning
     def step_motion_planner_home(self):
+        self.motion_planner.wait_move_done()
         self.motion_planner.motion_planner_home()
         self.motion_planner.wait_move_done()
 
     def step_motion_planner_target(self, target):
+        self.motion_planner.wait_move_done()
         self.motion_planner.motion_planner_target(target)
         self.motion_planner.wait_move_done()
 
     def step_motion_planner_tray(self):
+        self.motion_planner.wait_move_done()
         self.motion_planner.motion_planner_tray()
+        self.motion_planner.wait_move_done()
+
+    def step_motion_planner_conta(self):
+        self.motion_planner.wait_move_done()
+        self.motion_planner.motion_planner_conta()
         self.motion_planner.wait_move_done()
 
     def set_dependencies(
@@ -116,7 +125,7 @@ class Controller:
         self.step_move_home()
 
     def init_pose(self):
-        self.mover.move_to_home()
+        self.step_move_home()
         self.gripper.close_grip()
         
     def handle_target_coord(self, request, response):
@@ -140,7 +149,7 @@ class Controller:
         message = "Task completed"
 
         try:
-            self.init_pose()
+            # self.init_pose()
 
             # target 큐에서 하나 꺼내기 (없으면 5초 대기)
             wait_time = 0.0

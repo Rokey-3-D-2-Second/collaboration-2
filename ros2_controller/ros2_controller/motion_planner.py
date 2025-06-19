@@ -2,20 +2,25 @@ import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient
 
+from builtin_interfaces.msg import Duration
 from sensor_msgs.msg import JointState
+from geometry_msgs.msg import PoseStamped
 from trajectory_msgs.msg import JointTrajectoryPoint, JointTrajectory
 from control_msgs.action import FollowJointTrajectory
-from moveit_msgs.action import MoveGroup, ExecuteTrajectory
 from moveit_msgs.msg import MotionPlanRequest, Constraints, JointConstraint, RobotState
+from moveit_msgs.action import MoveGroup, ExecuteTrajectory
+from moveit_msgs.srv import GetPositionIK
 from dsr_msgs2.srv import Ikin
 
 from util import config, exceptions
 import math, time
+import tf_transformations
 
 class Motion_Planner:
     # home = config.homej
     home = config.homex
     tray = config.trayx
+    conta = config.contax
 
     def __init__(self, node: Node):
         self.node = node
@@ -29,9 +34,13 @@ class Motion_Planner:
             10
         )
 
-        self.ik_cli = self.node.create_client(
+        self.ik_cli_dsr = self.node.create_client(
             Ikin, 
             config.MOTION_IKIN
+        )
+        self.ik_cli_move_group = self.node.create_client(
+            GetPositionIK,
+            config.COMPUTE_IK
         )
 
         self.movegroup_client = ActionClient(
@@ -52,34 +61,113 @@ class Motion_Planner:
     def motion_planner_home(self):
         self._motion_done = False
         # self._movegroup_planning(self.home)
-        self._ik(self.home)
-    
-    def motion_planner_tray(self):
-        self._motion_done = False
-        self._ik(self.tray)
+        self._ik_dsr(self.home)
+        # self._ik_move_group(self.home)
 
     def motion_planner_target(self, target):
         self._motion_done = False
         target[2] += 15
-        self._ik([float(i) for i in target])
+        self._ik_dsr([float(i) for i in target])
+        # self._ik_move_group([float(i) for i in target])
+    
+    def motion_planner_tray(self):
+        self._motion_done = False
+        self._ik_dsr(self.tray)
+        # self._ik_move_group(self.tray)
 
-    def _ik(self, posx):
+    def motion_planner_conta(self):
+        self._motion_done = False
+        self._ik_dsr(self.conta)
+
+    def _ik_dsr(self, posx):
+        self.node.get_logger().info(f"[IK] 요청 posx: {posx}")
+
         req = Ikin.Request()
         req.pos = posx
         req.sol_space = 2
         req.ref = 0
 
-        future = self.ik_cli.call_async(req)
+        self.node.get_logger().info(f"[IK] 요청 req: {req}")
+        future = self.ik_cli_dsr.call_async(req)
+        future.add_done_callback(self._ik_callback)
+
+    def _ik_move_group(self, posx):
+        self.node.get_logger().info(f"[IK] 요청 posx: {posx}")
+
+        # joint_state가 유효한지 체크
+        if (
+            self.current_joint_state is None or
+            not getattr(self.current_joint_state, "name", None) or
+            not getattr(self.current_joint_state, "position", None) or
+            len(self.current_joint_state.name) == 0 or
+            len(self.current_joint_state.position) == 0
+        ):
+            self.node.get_logger().error("[IK] 현재 joint_state가 비어 있습니다. IK 요청을 중단합니다.")
+            self._motion_done = True
+            return
+
+        req = GetPositionIK.Request()
+        req.ik_request.group_name = "manipulator"
+        req.ik_request.avoid_collisions = True
+        req.ik_request.timeout = Duration(sec=5, nanosec=0)
+        req.ik_request.ik_link_name = "link_6"
+        
+        # 목표 pose (geometry_msgs/PoseStamped) 생성
+        pose = PoseStamped()
+        
+        pose.header.frame_id = "base_link"  # 또는 로봇 기준 프레임명에 맞게 수정
+        pose.header.stamp = self.node.get_clock().now().to_msg()
+
+        pose.pose.position.x = posx[0] * 0.001  # mm → m 변환 (필요시)
+        pose.pose.position.y = posx[1] * 0.001
+        pose.pose.position.z = posx[2] * 0.001
+        q = tf_transformations.quaternion_from_euler(   # RPY → Quaternion 변환 필요 (예시)
+            math.radians(posx[3]), 
+            math.radians(posx[4]), 
+            math.radians(posx[5])
+        )
+        pose.pose.orientation.x = q[0]
+        pose.pose.orientation.y = q[1]
+        pose.pose.orientation.z = q[2]
+        pose.pose.orientation.w = q[3]
+        req.ik_request.pose_stamped = pose
+
+        # 현재 joint state를 robot_state로 설정        
+        robot_state = RobotState()
+
+        # URDF/SRDF 기준 조인트 순서
+        urdf_joint_order = config.JOINT_NAMES
+        name_to_pos = dict(zip(self.current_joint_state.name, self.current_joint_state.position))
+        sorted_positions = [name_to_pos[j] for j in urdf_joint_order]
+        sorted_joint_state = JointState()
+        sorted_joint_state.name = urdf_joint_order
+        sorted_joint_state.position = sorted_positions
+
+        robot_state.joint_state = sorted_joint_state
+        req.ik_request.robot_state = robot_state
+
+        self.node.get_logger().info(f"[IK] 요청 req: {req}")
+        future = self.ik_cli_move_group.call_async(req)
         future.add_done_callback(self._ik_callback)
 
     def _ik_callback(self, future):
         if future.result().success:
-            self.node.get_logger().info(f"IK 성공! 결과 posj: {future.result().conv_posj}")
+            self.node.get_logger().info(f"[IK] 성공! 결과 posj: {future.result().conv_posj}")
             # IK 결과를 MoveGroup 액션으로 넘김
             self._movegroup_planning(future.result().conv_posj)
         else:
-            self.node.get_logger().error("IK 실패!")
+            self.node.get_logger().error("[IK] 실패!")
             self._motion_done = True
+        
+        # res = future.result()
+        # if res.error_code.val == res.error_code.SUCCESS:
+        #     joint_state = res.solution.joint_state
+        #     self.node.get_logger().info(f"[IK] 성공! 결과 posj: {joint_state.position}")
+        #     # joint_state.position, joint_state.name 등 사용
+        #     # self._movegroup_planning(joint_state.position)
+        # else:
+        #     self.node.get_logger().error(f"[IK] 실패!: {res}")
+        #     self._motion_done = True
 
     def _movegroup_planning(self, posj):
         self.node.get_logger().info(f"[플래닝] MoveGroup 액션 goal 생성 (posj: {posj})")
@@ -102,8 +190,8 @@ class Motion_Planner:
             jc = JointConstraint()
             jc.joint_name = name
             jc.position = value
-            jc.tolerance_above = 0.01
-            jc.tolerance_below = 0.01
+            jc.tolerance_above = 0.005
+            jc.tolerance_below = 0.005
             jc.weight = 1.0
             joint_constraints.append(jc)
         goal_msg.request.goal_constraints.append(Constraints(joint_constraints=joint_constraints))
@@ -176,6 +264,6 @@ class Motion_Planner:
             rclpy.spin_once(self.node, timeout_sec=0.1)
             time.sleep(0.05)
 
-        stabilization = 1.0
+        stabilization = 0.25
         self.node.get_logger().info(f"움직임 완료 확인됨, 안정화 {stabilization}초")
         time.sleep(stabilization)

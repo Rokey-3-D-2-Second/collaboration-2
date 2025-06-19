@@ -31,9 +31,9 @@ class Gripper:
     
     def is_hold(self):
         width = self.get_width()
-        if width < 6:
+        if width < 10:
             return config.CLOSE
-        if width < 25:
+        if width < 30:
             return config.HOLDING
         return config.OPEN
 
@@ -41,7 +41,7 @@ class Gripper:
         return self.gripper.get_status()
     
     def get_width(self):
-        return self.get_width()
+        return self.gripper.get_width()
 
     def __del__(self):
         self.gripper.close_connection()

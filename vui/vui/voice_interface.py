@@ -5,8 +5,7 @@ from rclpy.action import ActionClient
 from cb_interfaces.action import TaskSteps
 from cb_interfaces.srv import Target
 
-import os
-import sys
+import os, sys, time
 
 from .stt_module import STTModule
 from .langchain_module import LangChainModule
@@ -40,7 +39,10 @@ class VoiceInterface(Node):
 
     # STT
     def listener(self):
-        self.get_logger().info("🎤 5초간 음성을 입력해주세요...")
+        self.get_logger().info("🎤 잠시후, 5초간 음성을 입력해주세요...")
+        self.speaker(f"무엇을 도와드릴까요?")
+        time.sleep(1.0)
+        self.get_logger().info("🎤 음성 입력중...")
         user_text = self.stt.listen()
         self.get_logger().info(f'user_text: {user_text}')
         return user_text
@@ -54,7 +56,7 @@ class VoiceInterface(Node):
     # TTS
     def speaker(self, respoonse):
         self.tts.speak(respoonse)
-        self.get_logger().info(f'🗣️: {respoonse}')
+        self.get_logger().info(f'[로키] 🗣️: {respoonse}')
 
     # Validate
     def is_nothing(self, targets, task_steps_per_target):
@@ -189,13 +191,15 @@ class VoiceInterface(Node):
     # RUN
     def run(self):
         self.start_once.destroy()
+        self.speaker(f"안녕하세요. 중앙공급실 자동화 로봇 서비스 메디크루라고 합니다.")
 
         try:
             # STT
-            user_text = self.listener()
+            # user_text = self.listener()
             # user_text = "칼 가져와"
             # user_text = "숟가락 가져와"
-            # user_text = "포크 가져와"
+            user_text = "포크 가져와"
+            # user_text = "숟가락, 칼, 포크 가져와"
 
             # LangChain
             targets, task_steps_per_target = self.extractor(user_text)
@@ -218,7 +222,6 @@ class VoiceInterface(Node):
             self.exit(msg)
         
     def exit(self, msg):
-        # raise exceptions.VUI_ERROR(406)
         self.speaker(msg)
         self.start_once = self.create_timer(0.1, self.run)
 
