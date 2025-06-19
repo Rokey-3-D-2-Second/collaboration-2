@@ -19,7 +19,7 @@ class TaskLogger:
         uri: str = "mongodb://localhost:27017/",
         db_name: str = "central_supply",
         collection_name: str = "task_logs",
-        report_dir: str | Path = "~/report",
+        report_dir: str | Path = "~/ros2_ws/report",
     ):
         # ── MongoDB 연결 ───────────────────────────────
         self.client = MongoClient(uri, serverSelectionTimeoutMS=3000)
