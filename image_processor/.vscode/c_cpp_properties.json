@@ -1,0 +1,42 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/moonseungyeon/ros2_ws1/install/my_interfaces/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/multirobot_map_merge/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/hangman_interfaces/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/gz_ros2_control/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/explore_lite/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/dsr_realtime_control/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/dsr_controller2/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/dsr_msgs2/include/**",
+        "/home/moonseungyeon/ros2_ws1/install/dsr_hardware2/include/**",
+        "/home/moonseungyeon/turtlebot4_ws/install/turtlebot4_node/include/**",
+        "/home/moonseungyeon/turtlebot4_ws/install/turtlebot4_msgs/include/**",
+        "/home/moonseungyeon/ros2_ws/install/my_interfaces/include/**",
+        "/home/moonseungyeon/ros2_ws/install/dsr_realtime_control/include/**",
+        "/home/moonseungyeon/ros2_ws/install/dsr_controller2/include/**",
+        "/home/moonseungyeon/ros2_ws/install/dsr_msgs2/include/**",
+        "/home/moonseungyeon/ros2_ws/install/dsr_hardware2/include/**",
+        "/home/moonseungyeon/ros2_ws/install/cb_interfaces/include/**",
+        "/home/moonseungyeon/ros2_example_ws/install/examples_rclcpp_cbg_executor/include/**",
+        "/opt/ros/humble/include/**",
+        "/home/moonseungyeon/ros2_ws/src/DoosanBootcamp3rd/dsr_common2/include/**",
+        "/home/moonseungyeon/ros2_ws/src/DoosanBootcamp3rd/dsr_controller2/include/**",
+        "/home/moonseungyeon/ros2_ws/src/DoosanBootcamp3rd/dsr_example2/dsr_realtime_control/include/**",
+        "/home/moonseungyeon/ros2_ws/src/DoosanBootcamp3rd/dsr_hardware2/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

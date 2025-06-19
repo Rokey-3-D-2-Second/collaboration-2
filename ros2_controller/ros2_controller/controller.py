@@ -12,37 +12,45 @@ from .motion_planner import Motion_Planner
 
 from util import config, exceptions
 from collections import deque
+from util.task_logger import get_logger  # Logger singleton
 
+from pathlib import Path
 import DR_init
+
 DR_init.__dsr__id = config.ROBOT_ID
 DR_init.__dsr__model = config.ROBOT_MODEL
 
+
 class Controller:
+    """Pick‑and‑place 로봇 제어 + TaskLogger 연동 (개선판)"""
+
     def __init__(self, node: Node):
         self.node = node
-        self.targets = deque()  # 여러 target 좌표를 큐로 관리
+        self.targets: deque = deque()
 
-        # service server for target coord
-        self.target_coord_srv = self.node.create_service(
-            TargetCoord,
-            config.TARGET_COORD,
-            self.handle_target_coord
-        )
-
-        # action server for task_steps
-        self.task_steps_action_server = ActionServer(
-            self.node,
-            TaskSteps,
-            config.TASK_STEPS,
-            self.handle_task_steps
-        )
-
+        # 하드웨어 모듈
         self.motion_planner = Motion_Planner(self.node)
         self.mover = Mover()
         self.forcer = Forcer()
         self.gripper = Gripper()
-        
-        # step 이름과 함수 매핑
+
+        # Logger (start_task는 매 Action 실행 시 호출)
+        self.logger = get_logger()
+
+        # Service: target coordinate
+        self.target_coord_srv = self.node.create_service(
+            TargetCoord, config.TARGET_COORD, self.handle_target_coord
+        )
+
+        # Action: 단계별 작업 수행
+        self.task_steps_action_server = ActionServer(
+            self.node,
+            TaskSteps,
+            config.TASK_STEPS,
+            execute_callback=self.handle_task_steps,  # goal_callback 생략 → 모두 수락
+        )
+
+        # step 이름 ↔ 함수 매핑
         self.task_step_funcs = {
             "move_home": self.step_move_home,
             "move_target": self.step_move_target,
@@ -52,19 +60,16 @@ class Controller:
             "open_grip": self.step_open_grip,
         }
 
-    # 각 step별 함수 정의
+    # ────────────────────────── step별 함수 정의 ────────────────────────── #
 
     # move
     def step_move_home(self, target=None):
-        # self.mover.move_to_home()
         self.step_motion_planner_home()
 
     def step_move_target(self, target):
-        # self.mover.move_to_target(target)
         self.step_motion_planner_target(target)
-        
+
     def step_move_tray(self, target=None):
-        # self.mover.move_to_tray()
         self.step_motion_planner_tray()
 
     # force
@@ -77,20 +82,13 @@ class Controller:
     # gripper
     def step_close_grip(self, target=None):
         self.gripper.close_grip()
-        if self.gripper.is_close():
-            self.mover.up_little(0)
-        else:
-            self.mover.up_little()
+        self.mover.up_little(0 if self.gripper.is_close() else None)
 
     def step_open_grip(self, target=None):
-        if self.gripper.is_close():
-            self.gripper.open_grip()
-            self.mover.down_little()
-        else:
-            self.gripper.open_grip()
-            self.mover.down_little(0)
+        self.gripper.open_grip()
+        self.mover.down_little(None if self.gripper.is_close() else 0)
 
-    # motion planning
+    # motion planning helpers
     def step_motion_planner_home(self):
         self.motion_planner.motion_planner_home()
         self.motion_planner.wait_move_done()
@@ -103,200 +101,188 @@ class Controller:
         self.motion_planner.motion_planner_tray()
         self.motion_planner.wait_move_done()
 
-    def set_dependencies(
-        self, 
-        check_motion,
-    ):
+    # ────────────────────────── 의존성 주입 ────────────────────────── #
+    def set_dependencies(self, check_motion):
         self.check_motion = check_motion
 
+    # ────────────────────────── 초기 위치 이동 ────────────────────────── #
     def init_start(self):
         self.step_move_home()
         self.mover.move_to_scan()
-        
+
+    # ────────────────────────── Service 콜백 ────────────────────────── #
     def handle_target_coord(self, request, response):
         try:
             self.node.get_logger().info(f"request: {request.pose}")
-            pose = request.pose
-            self.targets.append(pose)
-
+            self.targets.append(request.pose)
             response.succeed = True
-            self.node.get_logger().info(f"resposne: {response.succeed}")
-            return response
-
         except Exception as e:
-            self.node.get_logger().error(f"target_coord service exception: {e}")
+            self.node.get_logger().error(f"target_coord exception: {e}")
             response.succeed = False
-            return response
+        return response
 
+    # ────────────────────────── Action 콜백 (실행) ────────────────────────── #
     def handle_task_steps(self, goal_handle):
+        self.logger.start_task()
+
         steps = goal_handle.request.steps
-        success = True
-        message = "Task completed"
+        success, message = True, "Task completed"
+        idx, step = -1, ""
 
         try:
             self.mover.move_to_home()
             self.gripper.close_grip()
 
-            # target 큐에서 하나 꺼내기 (없으면 5초 대기)
             wait_time = 0.0
             while not self.targets and wait_time < 5.0:
-                self.node.get_logger().warn('Waiting for target coordinate...')
                 rclpy.spin_once(self.node, timeout_sec=0.1)
                 wait_time += 0.1
-            
+
             if not self.targets:
+                err_msg = f"[Controller] target coordinate queue empty after waiting {wait_time:.1f} seconds"
+                self.node.get_logger().error(err_msg)
                 raise exceptions.ROS2_CONTROLLER_ERROR(303)
-            
+
             target = self.targets.popleft()
+            self.node.get_logger().info(f"[Controller] Got target coordinate: {target}")
 
             feedback = TaskSteps.Feedback()
             for idx, step in enumerate(steps):
+                self.logger.log_step(step, "Start")
+
                 feedback.current_step = idx
                 feedback.step_desc = f"Executing: {step}"
                 goal_handle.publish_feedback(feedback)
-                self.node.get_logger().info(f"피드백 publish: {feedback.current_step}, {feedback.step_desc}")
 
                 func = self.task_step_funcs.get(step)
-                if func is not None:
+                if func is None:
+                    err_msg = f"Unknown step '{step}' requested"
+                    self.node.get_logger().error(err_msg)
+                    raise exceptions.ROS2_CONTROLLER_ERROR(300)
+
+                try:
                     if step == "move_target":
                         func(target)
                     else:
                         func()
-                else:
-                    raise exceptions.ROS2_CONTROLLER_ERROR(300)
+                    self.logger.log_step(step, "Success")
+                except Exception as e:
+                    self.logger.log_step(step, "Fail", str(e))
+                    raise
 
             self.mover.move_to_home()
             self.gripper.close_grip()
 
         except Exception as e:
             success = False
-            message = f"Failed at step {idx+1} ({step} : {e})"
+            message = f"Failed at step {idx + 1} ({step} : {e})"
             self.node.get_logger().error(message)
-        
+
         finally:
+            status_txt = "Tray setup complete" if success else "Failed"
+            try:
+                self.logger.complete_task(status_txt)
+                self.logger.make_report(n=5)  # 경로 인자 없이 호출
+            except Exception as e:
+                self.node.get_logger().warn(f"Report error: {e}")
+
             result = TaskSteps.Result()
             result.success = success
             result.message = message
-            if success:
-                goal_handle.succeed()
-            else:
-                goal_handle.abort()
+            (goal_handle.succeed if success else goal_handle.abort)()
             return result
 
+
+    # ────────────────────────── 소멸자 ────────────────────────── #
     def __del__(self):
         self.node.destroy_node()
 
+
+# ────────────────────────── 의존성 주입 함수 ────────────────────────── #
+
 def init_modules(
-        controller: Controller,
-
-        movel, movej,
-        check_motion,
-        
-        check_force_condition,
-        task_compliance_ctrl,
-        release_compliance_ctrl,
-        set_desired_force,
-        release_force,
-
-        get_current_posx,
-
-        DR_AXIS_Z,
-
-        DR_FC_MOD_REL
-    ):
-
-    controller.set_dependencies(
-        check_motion,
-    )
-    controller.mover.set_dependencies(
-        movel, movej,
-
-        get_current_posx,
-    )
+    controller: Controller,
+    movel,
+    movej,
+    check_motion,
+    check_force_condition,
+    task_compliance_ctrl,
+    release_compliance_ctrl,
+    set_desired_force,
+    release_force,
+    get_current_posx,
+    DR_AXIS_Z,
+    DR_FC_MOD_REL,
+):
+    controller.set_dependencies(check_motion)
+    controller.mover.set_dependencies(movel, movej, get_current_posx)
     controller.forcer.set_dependencies(
         check_force_condition,
         task_compliance_ctrl,
         release_compliance_ctrl,
         set_desired_force,
         release_force,
-
         DR_AXIS_Z,
-
-        DR_FC_MOD_REL
+        DR_FC_MOD_REL,
     )
+
+
+# ────────────────────────── main ────────────────────────── #
 
 def main():
     rclpy.init()
-    node = rclpy.create_node('ros2_controller', namespace=config.ROBOT_ID)
+    node = rclpy.create_node("ros2_controller", namespace=config.ROBOT_ID)
     DR_init.__dsr__node = node
     controller = Controller(node)
-    
-    # import dsr api
+
+    # DSR API 런타임 import
     from DSR_ROBOT2 import (
-        get_tcp, get_tool,
-        set_tcp, set_tool, 
+        get_tcp,
+        get_tool,
+        set_tcp,
+        set_tool,
         set_ref_coord,
-
-        movel, movej,
+        movel,
+        movej,
         check_motion,
-        
         check_force_condition,
         task_compliance_ctrl,
         release_compliance_ctrl,
         set_desired_force,
         release_force,
-
         get_current_posx,
-
         DR_AXIS_Z,
-
-        DR_FC_MOD_REL
+        DR_FC_MOD_REL,
     )
 
-    # init modules
-    init_modules(  
+    init_modules(
         controller,
-
-        movel, movej,
+        movel,
+        movej,
         check_motion,
-        
         check_force_condition,
         task_compliance_ctrl,
         release_compliance_ctrl,
         set_desired_force,
         release_force,
-
         get_current_posx,
-
         DR_AXIS_Z,
-
-        DR_FC_MOD_REL
+        DR_FC_MOD_REL,
     )
 
-    # set tcp & tool
+    # TCP & Tool 설정
     set_tcp(config.ROBOT_TCP)
     set_tool(config.ROBOT_TOOL)
 
-    # check tcp & tool
-    tcp, tool = get_tcp(), get_tool()
-    print(f'tcp: {tcp}, tool: {tool}')
-    if tcp != config.ROBOT_TCP or tool != config.ROBOT_TOOL:
+    # 설정 검증
+    if (tcp := get_tcp()) != config.ROBOT_TCP or (tool := get_tool()) != config.ROBOT_TOOL:
         node.destroy_node()
         rclpy.shutdown()
         return
 
     try:
-        print("controller initialize")
         controller.init_start()
-        print("Spin Start")
-        while True:
+        while rclpy.ok():
             rclpy.spin_once(node)
     except KeyboardInterrupt:
-        controller.forcer.force_off()
-        node.get_logger().info("Shutting down ...")
-    finally:
-        del controller
-        rclpy.shutdown()
-
-if __name__ == 'main':
-    main()
+        controller.forcer
