@@ -39,9 +39,10 @@ setup(
     tests_require=["pytest"],
     # ────────────────────────────── 실행 엔트리포인트 ───────────────────────────── #
     entry_points={
-        "console_scripts": [
-            "controller = ros2_controller.controller:main",
-            "moveiter   = ros2_controller.moveiter:main",
+        'console_scripts': [
+            'controller = ros2_controller.controller:main',
+            'moveiter = ros2_controller.moveiter:main',
+            'monitor = ros2_controller.motion_monitor:main',
         ],
     },
 )

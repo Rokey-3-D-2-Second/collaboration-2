@@ -60,7 +60,7 @@ class Yolo:
             ):
                 if score >= confidence_threshold:
                     raw.append({"box": box, "score": score, "label": int(label)})
-        print(f"_aggregate_detections - raw: {raw}")
+        # print(f"_aggregate_detections - raw: {raw}")
 
         final = []
         used = [False] * len(raw)
@@ -89,11 +89,11 @@ class Yolo:
                 }
             )
 
-        print(f"_aggregate_detections - final: {final}")
+        # print(f"_aggregate_detections - final: {final}")
         return final
 
     def _iou(self, box1, box2):
-        print("_iou")
+        # print("_iou")
         """
         두 박스의 IoU(Intersection over Union) 계산
         """
@@ -117,5 +117,5 @@ class Yolo:
         if not matches:
             raise exceptions.IMAGE_PROCESSOR_ERROR(101)
         
-        print(f"_get_best_detection: {matches}")
+        # print(f"_get_best_detection: {matches}")
         return max(matches, key=lambda x: x["score"])

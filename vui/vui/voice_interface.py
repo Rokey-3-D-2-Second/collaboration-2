@@ -5,8 +5,7 @@ from rclpy.action import ActionClient
 from cb_interfaces.action import TaskSteps
 from cb_interfaces.srv import Target
 
-import os
-import sys
+import os, sys, time
 
 from .stt_module import STTModule
 from .langchain_module import LangChainModule
@@ -19,6 +18,7 @@ sys.stderr = open(os.devnull, 'w')
 class VoiceInterface(Node):
     def __init__(self):
         super().__init__('voice_interface')
+        self.get_logger().info('initialize start')
 
         self.stt = STTModule()
         self.langchain = LangChainModule()
@@ -35,9 +35,14 @@ class VoiceInterface(Node):
 
         self.start_once = self.create_timer(0.1, self.run)
 
+        self.get_logger().info('initialize done')
+
     # STT
     def listener(self):
-        self.get_logger().info("🎤 5초간 음성을 입력해주세요...")
+        self.get_logger().info("🎤 잠시후, 5초간 음성을 입력해주세요...")
+        self.speaker(f"무엇을 도와드릴까요?")
+        time.sleep(1.0)
+        self.get_logger().info("🎤 음성 입력중...")
         user_text = self.stt.listen()
         self.get_logger().info(f'user_text: {user_text}')
         return user_text
@@ -51,9 +56,17 @@ class VoiceInterface(Node):
     # TTS
     def speaker(self, respoonse):
         self.tts.speak(respoonse)
-        self.get_logger().info(f'🗣️: {respoonse}')
+        self.get_logger().info(f'[로키] 🗣️: {respoonse}')
 
     # Validate
+    def is_nothing(self, targets, task_steps_per_target):
+        if "nothing" in targets:
+            raise exceptions.VUI_ERROR(407)
+        
+        for task_steps in task_steps_per_target:
+            if "nothing" in task_steps:
+                raise exceptions.VUI_ERROR(408)
+        
     def is_same_count(self, targets, task_steps_per_target):
         if len(targets) != len(task_steps_per_target) or len(targets) == 0:
             # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
@@ -75,6 +88,8 @@ class VoiceInterface(Node):
 
     # Service to Image Processor
     def call_target_services(self, targets):
+        self.get_logger().info(f'타겟: {targets}')
+
         self.targets = targets
         self.target_service_results = []
         self.target_count = len(targets)
@@ -102,7 +117,7 @@ class VoiceInterface(Node):
         if self.target_count > 0:
             msg = f"남은 서비스 응답 존재: {self.target_count}"
             self.get_logger().info(msg)
-            self.exit(msg)
+            # self.exit(msg)
             return
         self.get_logger().info("모든 서비스 응답 종료")
 
@@ -127,7 +142,7 @@ class VoiceInterface(Node):
             self.get_logger().error(msg)
             self.exit(msg)
             return
-
+        
         # 액션 goal 생성 및 전송
         goal_msg = TaskSteps.Goal()
         goal_msg.steps = task_steps
@@ -176,18 +191,21 @@ class VoiceInterface(Node):
     # RUN
     def run(self):
         self.start_once.destroy()
+        self.speaker(f"안녕하세요. 중앙공급실 자동화 로봇 서비스 메디크루라고 합니다.")
 
         try:
             # STT
-            user_text = self.listener()
+            # user_text = self.listener()
             # user_text = "칼 가져와"
             # user_text = "숟가락 가져와"
-            # user_text = "포크 가져와"
+            user_text = "포크 가져와"
+            # user_text = "숟가락, 칼, 포크 가져와"
 
             # LangChain
-            targets, task_steps_per_target = self.langchain.extract(user_text)
+            targets, task_steps_per_target = self.extractor(user_text)
         
-            # validate targets, task_steps_per_targets
+            # validate targets, 
+            self.is_nothing(targets, task_steps_per_target)
             self.is_same_count(targets, task_steps_per_target)
             self.is_valid_targets(targets)
             self.is_valid_task_steps(task_steps_per_target)
@@ -204,7 +222,6 @@ class VoiceInterface(Node):
             self.exit(msg)
         
     def exit(self, msg):
-        # raise exceptions.VUI_ERROR(406)
         self.speaker(msg)
         self.start_once = self.create_timer(0.1, self.run)
 

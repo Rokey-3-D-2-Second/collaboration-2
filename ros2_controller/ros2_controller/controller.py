@@ -58,6 +58,7 @@ class Controller:
             "force": self.step_force,
             "close_grip": self.step_close_grip,
             "open_grip": self.step_open_grip,
+            "detect_conta": self.step_detect_conta,
         }
 
     # ────────────────────────── step별 함수 정의 ────────────────────────── #
@@ -72,45 +73,58 @@ class Controller:
     def step_move_tray(self, target=None):
         self.step_motion_planner_tray()
 
+    def step_detect_conta(self):
+        self.step_motion_planner_conta()
+
     # force
     def step_force(self, target=None):
         self.forcer.force_on()
         self.forcer.check_touch()
         self.forcer.force_off()
-        self.mover.up_little()
+        self.mover.up_little(5)
 
     # gripper
     def step_close_grip(self, target=None):
         self.gripper.close_grip()
-        self.mover.up_little(0 if self.gripper.is_close() else None)
+        if self.gripper.is_close():
+            self.mover.up_little(0)
+        else:
+            self.mover.up_little()
 
     def step_open_grip(self, target=None):
-        self.gripper.open_grip()
-        self.mover.down_little(None if self.gripper.is_close() else 0)
+        if self.gripper.is_close():
+            self.gripper.open_grip()
+            self.mover.down_little()
+        else:
+            self.gripper.open_grip()
+            self.mover.down_little(0)
 
     # motion planning helpers
     def step_motion_planner_home(self):
+        self.motion_planner.wait_move_done()
         self.motion_planner.motion_planner_home()
         self.motion_planner.wait_move_done()
 
     def step_motion_planner_target(self, target):
+        self.motion_planner.wait_move_done()
         self.motion_planner.motion_planner_target(target)
         self.motion_planner.wait_move_done()
 
     def step_motion_planner_tray(self):
+        self.motion_planner.wait_move_done()
         self.motion_planner.motion_planner_tray()
         self.motion_planner.wait_move_done()
 
-    # ────────────────────────── 의존성 주입 ────────────────────────── #
-    def set_dependencies(self, check_motion):
+    def set_dependencies(
+        self, 
+        check_motion,
+    ):
         self.check_motion = check_motion
 
     # ────────────────────────── 초기 위치 이동 ────────────────────────── #
     def init_start(self):
-        self.step_move_home()
         self.mover.move_to_scan()
-
-    # ────────────────────────── Service 콜백 ────────────────────────── #
+        
     def handle_target_coord(self, request, response):
         try:
             self.node.get_logger().info(f"request: {request.pose}")
@@ -130,8 +144,7 @@ class Controller:
         idx, step = -1, ""
 
         try:
-            self.mover.move_to_home()
-            self.gripper.close_grip()
+            # self.init_pose()
 
             wait_time = 0.0
             while not self.targets and wait_time < 5.0:
@@ -170,8 +183,7 @@ class Controller:
                     self.logger.log_step(step, "Fail", str(e))
                     raise
 
-            self.mover.move_to_home()
-            self.gripper.close_grip()
+            self.init_pose()
 
         except Exception as e:
             success = False

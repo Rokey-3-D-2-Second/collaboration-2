@@ -104,7 +104,9 @@ class VUI_ERROR(Exception):
         403: "타겟과 작업 단계의 개수가 일치하지 않습니다.",
         404: "유효하지 않은 타겟이 포함되어 있습니다.",
         405: "유효하지 않은 작업 단계가 포함되어 있습니다.",
-        406: "Exit"
+        406: "Exit",
+        407: "Target에 Nothing이 포함되어 있습니다.",
+        408: "Task Step에 Nothing이 포함되어 있습니다.",
     }
 
     def __init__(self, code: int):

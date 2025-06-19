@@ -1,46 +1,3 @@
-# import rclpy
-# from rclpy.node import Node
-
-# from octomap_msgs.msg import Octomap
-# from moveit_msgs.msg import PlanningSceneWorld
-
-# class PlanningSceneWorldPublisher(Node):
-#     def __init__(self):
-#         super().__init__('planning_scene_world_publisher')
-
-#         self.publisher_ = self.create_publisher(
-#             PlanningSceneWorld,
-#             '/planning_scene_world',
-#             10
-#         )
-
-#         self.subscription = self.create_subscription(
-#             Octomap,
-#             '/octomap_binary',
-#             self.octomap_callback,
-#             10
-#         )
-
-#         self.get_logger().info('Initialized: relaying /octomap_binary to /planning_scene_world')
-
-#     def octomap_callback(self, msg: Octomap):
-#         scene_world = PlanningSceneWorld()
-#         scene_world.octomap.header = msg.header
-#         scene_world.octomap.octomap = msg
-
-#         self.publisher_.publish(scene_world)
-#         self.get_logger().info('Published PlanningSceneWorld with Octomap')
-
-# def main(args=None):
-#     rclpy.init(args=args)
-#     node = PlanningSceneWorldPublisher()
-#     rclpy.spin(node)
-#     node.destroy_node()
-#     rclpy.shutdown()
-
-# if __name__ == '__main__':
-#     main()
-
 import rclpy
 from rclpy.node import Node
 
@@ -121,15 +78,15 @@ class PlanningSceneWorldPublisher(Node):
             points = pc2.read_points_numpy(msg, field_names=('x', 'y', 'z'), skip_nans=True)
 
             # 카메라 좌표계 기준 전방 20cm 이내 제거 (z < 0.25m, y < 0.05m)
-            filtered = points[points[:, 1] < 0.025]
+            # filtered = points[points[:, 1] < 0.025]
             # filtered = points[points[:, 2] > 0.25]
 
             # z > 0.2 AND y < 0.05 → 필터
-            # mask_y = points[:, 1] > 0.025
-            # mask_z = points[:, 2] < 0.25
-            # mask = np.logical_and(mask_y, mask_z)
+            mask_y = points[:, 1] < 0.025
+            mask_z = points[:, 2] > 0.275
+            mask = np.logical_and(mask_y, mask_z)
 
-            # filtered = points[mask]  # 이 시점에 filtered.shape = (N, 3)
+            filtered = points[mask]  # 이 시점에 filtered.shape = (N, 3)
 
             if filtered.shape[0] == 0:
                 return

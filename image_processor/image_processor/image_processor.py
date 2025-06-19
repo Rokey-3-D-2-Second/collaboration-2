@@ -114,7 +114,7 @@ class ImageProcessor(Node):
                     cv2.putText(img, f"{class_name} {score:.2f}", (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         except Exception as e:
-            self.get_logger().warn(f"YOLO 시각화 오류: {e}")
+            self.get_logger().warn(f"YOLO 시각화 오류: {type(e).__name__}: {e}")
 
         cv2.imshow("YOLO Detection", img)
         cv2.waitKey(1)
