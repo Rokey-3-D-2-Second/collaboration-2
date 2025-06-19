@@ -8,12 +8,12 @@ class Transformer:
     def __init__(self):
         # 모델 파일 경로 설정 및 로드
         # T_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "T_gripper2camera.npy"
-        T_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/T_gripper2camera.npy"
+        T_path = "~/ros2_ws/src/collaboration-2/image_processor/resource/T_gripper2camera.npy"
         # if not T_path.exists():
         #     raise FileNotFoundError(f"파일 경로가 존재하지 않음: {T_path}")
         
         self.T_gripper2camera = np.load(T_path)
-        print(self.T_gripper2camera)
+        # print(self.T_gripper2camera)
 
     def camera2base(self, xyz, robot_pos):
         """
@@ -34,7 +34,8 @@ class Transformer:
             float(base2target[0, 3]),
             float(base2target[1, 3]),
             float(base2target[2, 3]),
-            90.0, 180.0, 180.0,
+            # 90.0, 180.0, 180.0,
+            89.99, 179.99, 179.99,
         ]
     
     def base2gripper(self, robot_pos):

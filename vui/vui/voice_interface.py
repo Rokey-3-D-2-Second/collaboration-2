@@ -5,10 +5,7 @@ from rclpy.action import ActionClient
 from cb_interfaces.action import TaskSteps
 from cb_interfaces.srv import Target
 
-from dotenv import load_dotenv
-import os
-import sys
-from collections import deque
+import os, sys, time
 
 from .stt_module import STTModule
 from .langchain_module import LangChainModule
@@ -21,6 +18,7 @@ sys.stderr = open(os.devnull, 'w')
 class VoiceInterface(Node):
     def __init__(self):
         super().__init__('voice_interface')
+        self.get_logger().info('initialize start')
 
         self.stt = STTModule()
         self.langchain = LangChainModule()
@@ -37,9 +35,14 @@ class VoiceInterface(Node):
 
         self.start_once = self.create_timer(0.1, self.run)
 
+        self.get_logger().info('initialize done')
 
     # STT
     def listener(self):
+        self.get_logger().info("🎤 잠시후, 5초간 음성을 입력해주세요...")
+        self.speaker(f"무엇을 도와드릴까요?")
+        time.sleep(1.0)
+        self.get_logger().info("🎤 음성 입력중...")
         user_text = self.stt.listen()
         self.get_logger().info(f'user_text: {user_text}')
         return user_text
@@ -53,30 +56,40 @@ class VoiceInterface(Node):
     # TTS
     def speaker(self, respoonse):
         self.tts.speak(respoonse)
-        self.get_logger().info(f'🗣️: {respoonse}')
+        self.get_logger().info(f'[로키] 🗣️: {respoonse}')
 
     # Validate
+    def is_nothing(self, targets, task_steps_per_target):
+        if "nothing" in targets:
+            raise exceptions.VUI_ERROR(407)
+        
+        for task_steps in task_steps_per_target:
+            if "nothing" in task_steps:
+                raise exceptions.VUI_ERROR(408)
+        
     def is_same_count(self, targets, task_steps_per_target):
         if len(targets) != len(task_steps_per_target) or len(targets) == 0:
-            self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
+            # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[403])
             raise exceptions.VUI_ERROR(403)
         self.get_logger().info('타겟과 작업 단계의 개수가 일치')
 
     def is_valid_targets(self, targets):
         if not all(t in self.valid_targets for t in targets):
-            self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
+            # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
             raise exceptions.VUI_ERROR(404)
         self.get_logger().info('모든 타겟이 유효')
 
     def is_valid_task_steps(self, task_steps_per_target):
         for steps in task_steps_per_target:
             if not all(s in self.valid_task_steps for s in steps):
-                self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
+                # self.speaker(exceptions.VUI_ERROR.ERROR_MESSAGES[404])
                 raise exceptions.VUI_ERROR(405)
         self.get_logger().info('모든 작업 단계가 유효')
 
     # Service to Image Processor
     def call_target_services(self, targets):
+        self.get_logger().info(f'타겟: {targets}')
+
         self.targets = targets
         self.target_service_results = []
         self.target_count = len(targets)
@@ -91,7 +104,9 @@ class VoiceInterface(Node):
         # 서비스 응답 결과 확인 및 로깅
         response = future.result()
         if response is None:
-            self.get_logger().error("Target 서비스 호출 실패")
+            msg = "Target 서비스 호출 실패"
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
         self.get_logger().info("Target 서비스 호출 성공")
         
@@ -100,15 +115,17 @@ class VoiceInterface(Node):
 
         # 모든 서비스 응답이 끝났을 때만 액션 실행
         if self.target_count > 0:
-            self.get_logger().info(f"남은 서비스 응답 존재: {self.target_count}")
-            self.exit()
+            msg = f"남은 서비스 응답 존재: {self.target_count}"
+            self.get_logger().info(msg)
+            # self.exit(msg)
             return
         self.get_logger().info("모든 서비스 응답 종료")
 
         # 모든 타겟을 탐지했을 때만 액션 실행
         if not all(self.target_service_results):
-            self.get_logger().error(f"탐지 실패 타겟 존재: {target}")
-            self.exit()
+            msg = f"탐지 실패 타겟 존재: {target}"
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
         self.get_logger().info('모든 타겟 탐지 성공')
 
@@ -121,10 +138,11 @@ class VoiceInterface(Node):
     def send_task_steps_action(self, task_steps):
         # 액션 서버 연결 확인
         if not self.task_steps_action_client.wait_for_server(timeout_sec=5.0):
-            self.get_logger().error("TaskSteps 액션 서버를 찾을 수 없습니다.")
-            self.exit()
+            msg = "TaskSteps 액션 서버를 찾을 수 없습니다."
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
-
+        
         # 액션 goal 생성 및 전송
         goal_msg = TaskSteps.Goal()
         goal_msg.steps = task_steps
@@ -144,39 +162,50 @@ class VoiceInterface(Node):
     def goal_response_callback(self, future):
         goal_handle = future.result()
         if not goal_handle.accepted:
-            self.get_logger().error("Goal rejected")
-            self.exit()
+            msg = "Goal rejected"
+            self.get_logger().error(msg)
+            self.exit(msg)
             return
         self.get_logger().info("Goal accepted, 결과 대기 중...")
         
         self.action_count += 1
+        
         get_result_future = goal_handle.get_result_async()
         get_result_future.add_done_callback(self.result_callback)
 
     def result_callback(self, future):
-        result = future.result().result
-        result_text = f"[VUI] 결과: success={result.success}, message={result.message}"
-        self.get_logger().info(result_text)
         self.action_count -= 1
+        
+        result = future.result().result
+        if not result.success:
+            msg = f"Goal {result.success}"
+            self.get_logger().error(msg)
+            self.exit(msg)
+            return
+        result_text = f"최종결과는 success={result.success}, message={result.message} 입니다."
+        self.get_logger().info(result_text)
 
         if self.action_count == 0:
-            self.exit()
+            self.exit(result_text)
 
     # RUN
     def run(self):
         self.start_once.destroy()
+        self.speaker(f"안녕하세요. 중앙공급실 자동화 로봇 서비스 메디크루라고 합니다.")
 
         try:
             # STT
-            user_text = self.listener()
+            # user_text = self.listener()
             # user_text = "칼 가져와"
             # user_text = "숟가락 가져와"
-            # user_text = "포크 가져와"
+            user_text = "포크 가져와"
+            # user_text = "숟가락, 칼, 포크 가져와"
 
             # LangChain
-            targets, task_steps_per_target = self.langchain.extract(user_text)
+            targets, task_steps_per_target = self.extractor(user_text)
         
-            # validate targets, task_steps_per_targets
+            # validate targets, 
+            self.is_nothing(targets, task_steps_per_target)
             self.is_same_count(targets, task_steps_per_target)
             self.is_valid_targets(targets)
             self.is_valid_task_steps(task_steps_per_target)
@@ -188,11 +217,13 @@ class VoiceInterface(Node):
             # Action to controller는 서비스 응답 후 콜백에서 실행
             
         except exceptions.VUI_ERROR as e:
-            self.get_logger().error(str(e))
-            self.exit()
+            msg = str(e)
+            self.get_logger().error(msg)
+            self.exit(msg)
         
-    def exit(self):
-        raise exceptions.VUI_ERROR(406)
+    def exit(self, msg):
+        self.speaker(msg)
+        self.start_once = self.create_timer(0.1, self.run)
 
 def main():
     rclpy.init()

@@ -2,6 +2,11 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>ros2_controller</name>
+  
+  <exec_depend>python3-pymongo</exec_depend>
+  <exec_depend>python3-pandas</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+  
   <version>0.0.0</version>
   <description>TODO: Package description</description>
   <maintainer email="hojun7889@gmail.com">lhj</maintainer>

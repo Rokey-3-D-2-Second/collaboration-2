@@ -14,12 +14,14 @@ class Yolo:
     def __init__(self):
         # 모델 파일 경로 설정 및 로드
         # model_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "yolo11n.pt"
-        model_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/yolo11n.pt"
+        model_path = "~/ros2_ws/src/collaboration-2/image_processor/resource/yolo11n.pt"
+        # model_path = "/home/moonseungyeon/ros2_ws/src/collaboration-2/image_processor/resource/moon8.pt"
+
         # if not model_path.exists():
         #     raise FileNotFoundError(f"모델 경로가 존재하지 않음: {model_path}")
         
         # label_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "coco.yaml"
-        label_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/coco.yaml"
+        label_path = "~/ros2_ws/src/collaboration-2/image_processor/resource/coco.yaml"
         # if not label_path.exists():
         #     raise FileNotFoundError(f"라벨 경로가 존재하지 않음: {label_path}")
 
@@ -58,7 +60,7 @@ class Yolo:
             ):
                 if score >= confidence_threshold:
                     raw.append({"box": box, "score": score, "label": int(label)})
-        print(f"_aggregate_detections - raw: {raw}")
+        # print(f"_aggregate_detections - raw: {raw}")
 
         final = []
         used = [False] * len(raw)
@@ -87,11 +89,11 @@ class Yolo:
                 }
             )
 
-        print(f"_aggregate_detections - final: {final}")
+        # print(f"_aggregate_detections - final: {final}")
         return final
 
     def _iou(self, box1, box2):
-        print("_iou")
+        # print("_iou")
         """
         두 박스의 IoU(Intersection over Union) 계산
         """
@@ -115,5 +117,5 @@ class Yolo:
         if not matches:
             raise exceptions.IMAGE_PROCESSOR_ERROR(101)
         
-        print(f"_get_best_detection: {matches}")
+        # print(f"_get_best_detection: {matches}")
         return max(matches, key=lambda x: x["score"])

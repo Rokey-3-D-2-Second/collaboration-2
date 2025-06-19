@@ -40,7 +40,7 @@ class ImageProcessor(Node):
         # 서비스
         self.create_service(Target, config.TARGET, self.handle_target)
         self.target_coord_client = self.create_client(TargetCoord, config.TARGET_COORD)
-        self.get_current_posx = self.create_client(GetCurrentPosx, "/dsr01/aux_control/get_current_posx")
+        self.get_current_posx = self.create_client(GetCurrentPosx, config.GET_CURREN_POSX)
 
         # CV
         cv2.namedWindow("YOLO Detection", cv2.WINDOW_NORMAL | cv2.WINDOW_KEEPRATIO)
@@ -114,7 +114,7 @@ class ImageProcessor(Node):
                     cv2.putText(img, f"{class_name} {score:.2f}", (x1, y1 - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
         except Exception as e:
-            self.get_logger().warn(f"YOLO 시각화 오류: {e}")
+            self.get_logger().warn(f"YOLO 시각화 오류: {type(e).__name__}: {e}")
 
         cv2.imshow("YOLO Detection", img)
         cv2.waitKey(1)
