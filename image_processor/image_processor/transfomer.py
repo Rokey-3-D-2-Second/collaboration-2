@@ -8,7 +8,7 @@ class Transformer:
     def __init__(self):
         # 모델 파일 경로 설정 및 로드
         # T_path = Path(__file__).parent.parent.parent.parent /"src" /"collaboration-2" /"image_processor" / "resource" / "T_gripper2camera.npy"
-        T_path = "~/ros2_ws/src/collaboration-2/image_processor/resource/T_gripper2camera.npy"
+        T_path = "/home/lhj/ros2_ws/src/collaboration-2/image_processor/resource/T_gripper2camera.npy"
         # if not T_path.exists():
         #     raise FileNotFoundError(f"파일 경로가 존재하지 않음: {T_path}")
         
