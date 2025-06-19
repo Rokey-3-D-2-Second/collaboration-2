@@ -86,18 +86,17 @@ class Controller:
     # gripper
     def step_close_grip(self, target=None):
         self.gripper.close_grip()
-        if self.gripper.is_close():
-            self.mover.up_little(0)
-        else:
-            self.mover.up_little()
+        status = self.gripper.is_hold()
+        if status == config.HOLDING:
+            self.mover.up_little(100)
 
     def step_open_grip(self, target=None):
-        if self.gripper.is_close():
+        status = self.gripper.is_hold()
+        if status == config.HOLDING:
             self.gripper.open_grip()
-            self.mover.down_little()
-        else:
+        elif status == config.CLOSE:
             self.gripper.open_grip()
-            self.mover.down_little(0)
+            self.mover.down_little(15)
 
     # motion planning helpers
     def step_motion_planner_home(self):
@@ -115,6 +114,11 @@ class Controller:
         self.motion_planner.motion_planner_tray()
         self.motion_planner.wait_move_done()
 
+    def step_motion_planner_conta(self):
+        self.motion_planner.wait_move_done()
+        self.motion_planner.motion_planner_conta()
+        self.motion_planner.wait_move_done()
+
     def set_dependencies(
         self, 
         check_motion,
@@ -124,6 +128,11 @@ class Controller:
     # ────────────────────────── 초기 위치 이동 ────────────────────────── #
     def init_start(self):
         self.mover.move_to_scan()
+        self.step_move_home()
+
+    def init_pose(self):
+        self.step_move_home()
+        self.gripper.close_grip()
         
     def handle_target_coord(self, request, response):
         try:
@@ -178,10 +187,8 @@ class Controller:
                         func(target)
                     else:
                         func()
-                    self.logger.log_step(step, "Success")
-                except Exception as e:
-                    self.logger.log_step(step, "Fail", str(e))
-                    raise
+                except:
+                    raise exceptions.ROS2_CONTROLLER_ERROR(300)
 
             self.init_pose()
 
