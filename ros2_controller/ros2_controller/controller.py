@@ -11,8 +11,9 @@ from .gripper import Gripper
 from .motion_planner import Motion_Planner
 
 from util import config, exceptions
-from collections import deque
 from util.task_logger import get_logger  # Logger singleton
+from collections import deque
+import threading
 
 from pathlib import Path
 import DR_init
@@ -26,7 +27,11 @@ class Controller:
 
     def __init__(self, node: Node):
         self.node = node
-        self.targets: deque = deque()
+        
+        self.target_queue: deque = deque()
+        self._task_running = False
+        self._task_cond = threading.Condition()
+        self.step_queue: deque = deque()
 
         # 하드웨어 모듈
         self.motion_planner = Motion_Planner(self.node)
@@ -39,7 +44,9 @@ class Controller:
 
         # Service: target coordinate
         self.target_coord_srv = self.node.create_service(
-            TargetCoord, config.TARGET_COORD, self.handle_target_coord
+            TargetCoord, 
+            config.TARGET_COORD, 
+            self.handle_target_coord
         )
 
         # Action: 단계별 작업 수행
@@ -50,6 +57,8 @@ class Controller:
             execute_callback=self.handle_task_steps,  # goal_callback 생략 → 모두 수락
         )
 
+        # self.timer = self.node.create_timer(0.1, self._task_executor)
+
         # step 이름 ↔ 함수 매핑
         self.task_step_funcs = {
             "move_home": self.step_move_home,
@@ -58,7 +67,7 @@ class Controller:
             "force": self.step_force,
             "close_grip": self.step_close_grip,
             "open_grip": self.step_open_grip,
-            "detect_conta": self.step_detect_conta,
+            "move_conta": self.step_detect_conta,
         }
 
     # ────────────────────────── step별 함수 정의 ────────────────────────── #
@@ -88,7 +97,7 @@ class Controller:
         self.gripper.close_grip()
         status = self.gripper.is_hold()
         if status == config.HOLDING:
-            self.mover.up_little(100)
+            self.mover.up_little(120)
 
     def step_open_grip(self, target=None):
         status = self.gripper.is_hold()
@@ -137,7 +146,7 @@ class Controller:
     def handle_target_coord(self, request, response):
         try:
             self.node.get_logger().info(f"request: {request.pose}")
-            self.targets.append(request.pose)
+            self.target_queue.append(request.pose)
             response.succeed = True
         except Exception as e:
             self.node.get_logger().error(f"target_coord exception: {e}")
@@ -146,26 +155,39 @@ class Controller:
 
     # ────────────────────────── Action 콜백 (실행) ────────────────────────── #
     def handle_task_steps(self, goal_handle):
+        # with self._task_cond:
+        #     if self._task_running:
+        #         self.step_queue.append(goal_handle)
+
+        #         while self._task_running:   # 이미 실행 중이면 끝날 때까지 대기
+        #             self.node.get_logger().info("[Controller] 다른 태스크 실행 중, 대기합니다.")
+        #             self._task_cond.wait()
+                
+        #         goal_handle = self.step_queue.popleft()
+            
+        #     self._task_running = True
+
         self.logger.start_task()
+
+        # self.step_queue.append(goal_handle)
+        # return TaskSteps.Result()
 
         steps = goal_handle.request.steps
         success, message = True, "Task completed"
         idx, step = -1, ""
 
         try:
-            # self.init_pose()
-
             wait_time = 0.0
-            while not self.targets and wait_time < 5.0:
+            while not self.target_queue and wait_time < 5.0:
                 rclpy.spin_once(self.node, timeout_sec=0.1)
                 wait_time += 0.1
 
-            if not self.targets:
+            if not self.target_queue:
                 err_msg = f"[Controller] target coordinate queue empty after waiting {wait_time:.1f} seconds"
                 self.node.get_logger().error(err_msg)
                 raise exceptions.ROS2_CONTROLLER_ERROR(303)
 
-            target = self.targets.popleft()
+            target = self.target_queue.popleft()
             self.node.get_logger().info(f"[Controller] Got target coordinate: {target}")
 
             feedback = TaskSteps.Feedback()
@@ -209,8 +231,35 @@ class Controller:
             result.success = success
             result.message = message
             (goal_handle.succeed if success else goal_handle.abort)()
-            return result
 
+            # 태스크 종료 알림
+            # with self._task_cond:
+            #     self._task_running = False
+            #     self._task_cond.notify_all()
+            
+            return result
+        
+    def _task_executor(self):
+        if self._task_running or not self.step_queue or not self.target_queue:
+            return
+        
+        self.node.get_logger().info("run _task_executor")
+        
+        self._task_running = True
+        target = self.target_queue.popleft()
+        goal_handle = self.step_queue.popleft()
+
+        steps = goal_handle.request.steps
+        for idx, step in enumerate(steps):
+            self.logger.log_step(step, "Start")
+
+            func = self.task_step_funcs.get(step)
+            if step == "move_target":
+                func(target)
+            else:
+                func()
+
+        self.init_pose()
 
     # ────────────────────────── 소멸자 ────────────────────────── #
     def __del__(self):
@@ -299,9 +348,17 @@ def main():
         rclpy.shutdown()
         return
 
+    # executor = MultiThreadedExecutor()
+    # executor.add_node(node)
+
     try:
         controller.init_start()
         while rclpy.ok():
             rclpy.spin_once(node)
+        # executor.spin()
     except KeyboardInterrupt:
-        controller.forcer
+        pass
+    finally:
+        del controller
+        node.destroy_node()
+        rclpy.shutdown()

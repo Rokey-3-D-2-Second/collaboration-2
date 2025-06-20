@@ -66,7 +66,7 @@ class Motion_Planner:
 
     def motion_planner_target(self, target):
         self._motion_done = False
-        target[2] += 15
+        target[2] += 10
         self._ik_dsr([float(i) for i in target])
         # self._ik_move_group([float(i) for i in target])
     
