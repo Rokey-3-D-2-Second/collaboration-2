@@ -195,11 +195,9 @@ class VoiceInterface(Node):
 
         try:
             # STT
-            # user_text = self.listener()
-            # user_text = "칼 가져와"
-            # user_text = "숟가락 가져와"
-            user_text = "포크 가져와"
-            # user_text = "숟가락, 칼, 포크 가져와"
+            user_text = self.listener()
+            # user_text = "포크 트레이에 세팅해줘"
+            # user_text = "숟가락 트레이에 세팅해줘"
 
             # LangChain
             targets, task_steps_per_target = self.extractor(user_text)
