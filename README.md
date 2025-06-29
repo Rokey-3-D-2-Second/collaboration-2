@@ -63,8 +63,8 @@ AI(Computer Vision)기반 협동 로봇 작업 어시스턴트 구현 프로젝�
 ## 프로젝트 기여자
 
 - 문승연: opm0508@naver.com
+- 이요셉: rheejoseph54@gmail.com
 - 이호준: hojun7889@gmail.com
-- 지예은: jyebubu@gmail.com
 - 홍지원: jw1122.h@gmail.com
 
 ## 교육과정 및 참고자료
