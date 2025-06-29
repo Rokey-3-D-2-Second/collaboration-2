@@ -16,6 +16,8 @@ AI(Computer Vision)기반 협동 로봇 작업 어시스턴트 구현 프로젝�
 
 <div align="center">
 
+[Demo Video](https://github.com/user-attachments/assets/67010a89-4dae-406c-8c7c-979b4136967a)
+
 ![스크린샷](https://github.com/user-attachments/assets/30322db1-5d32-4324-8b34-3e8028cd11e9)
 
 </div>
